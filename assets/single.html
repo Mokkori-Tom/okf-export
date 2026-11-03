@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{.BundleName}}</title>
+<style>{{.Stylesheets}}
+.okf-page[hidden] { display: none; }</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="site-name" href="#/index.html">
+    <svg class="octicon" viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"/></svg>
+    <span>{{.BundleName}}</span>
+  </a>
+  <span class="badge">OKF bundle</span>
+</header>
+
+{{- range .Pages}}
+<main class="container okf-page" data-page="{{.Page}}" data-title="{{.Title}} · {{.BundleName}}" hidden>
+  {{template "content" .}}
+</main>
+{{- end}}
+
+<footer class="site-footer">Exported from an Open Knowledge Format bundle with okf-export</footer>
+
+<script type="application/json" id="okf-res">{{.Resources}}</script>
+<script>
+// Single-file router: "#/dir/page.html" shows that page, "#/page.html#id"
+// also scrolls to an element in it, and a bare "#id" (footnotes, headings,
+// sources) scrolls within the current page.
+(function () {
+  var res = JSON.parse(document.getElementById("okf-res").textContent || "[]");
+  document.querySelectorAll("[data-okf-src]").forEach(function (e) { e.src = res[+e.dataset.okfSrc]; });
+  document.querySelectorAll("[data-okf-href]").forEach(function (e) { e.href = res[+e.dataset.okfHref]; });
+
+  var pages = {};
+  document.querySelectorAll(".okf-page").forEach(function (s) { pages[s.dataset.page] = s; });
+  var current = null;
+
+  function route() {
+    var h = location.hash.slice(1), page, anchor = "", bare = h.charAt(0) !== "/";
+    if (!bare) {
+      h = h.slice(1);
+      var i = h.indexOf("#");
+      if (i >= 0) { anchor = h.slice(i + 1); h = h.slice(0, i); }
+      try { page = decodeURIComponent(h); } catch (e) { page = h; }
+    } else {
+      anchor = h;
+      page = current ? current.dataset.page : "index.html";
+    }
+    if (!pages[page]) page = page.replace(/\/?$/, "/index.html").replace(/^\//, "");
+    var s = pages[page] || pages["index.html"];
+    if (s !== current) {
+      if (current) current.hidden = true;
+      s.hidden = false;
+      current = s;
+      document.title = s.dataset.title;
+    }
+    if (bare && anchor) {
+      history.replaceState(null, "", "#/" + s.dataset.page + "#" + anchor);
+    }
+    var target = null;
+    if (anchor) {
+      try { anchor = decodeURIComponent(anchor); } catch (e) {}
+      target = s.querySelector('[id="' + anchor.replace(/["\\]/g, "\\$&") + '"]');
+    }
+    if (target) target.scrollIntoView(); else window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", route);
+  route();
+})();
+</script>
+</body>
+</html>

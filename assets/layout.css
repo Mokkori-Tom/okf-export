@@ -1,0 +1,170 @@
+
+/* Page chrome modelled on github.com's repository file view. */
+:root {
+  --fg: #1f2328;
+  --fg-muted: #59636e;
+  --accent: #0969da;
+  --bg: #ffffff;
+  --bg-muted: #f6f8fa;
+  --border: #d1d9e0;
+  --border-muted: #d1d9e0b3;
+  --topic-fg: #0969da;
+  --topic-bg: #ddf4ff;
+  --dir: #54aeff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #f0f6fc;
+    --fg-muted: #9198a1;
+    --accent: #4493f8;
+    --bg: #0d1117;
+    --bg-muted: #151b23;
+    --border: #3d444d;
+    --border-muted: #3d444db3;
+    --topic-fg: #4493f8;
+    --topic-bg: #388bfd1a;
+    --dir: #9198a1;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--fg);
+  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.octicon { fill: currentColor; vertical-align: text-bottom; flex-shrink: 0; }
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 24px;
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
+}
+.site-name { display: inline-flex; align-items: center; gap: 8px; color: var(--fg); font-weight: 600; font-size: 16px; min-width: 0; }
+.site-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge {
+  border: 1px solid var(--border);
+  border-radius: 2em;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.container { max-width: 1012px; margin: 0 auto; padding: 24px; }
+.breadcrumb { font-size: 16px; margin-bottom: 16px; word-break: break-word; }
+.breadcrumb a { font-weight: 600; }
+.breadcrumb .sep { color: var(--fg-muted); margin: 0 4px; }
+
+.title-row { margin-bottom: 16px; }
+.page-title { font-size: 24px; font-weight: 600; margin: 0 0 4px; word-break: break-word; }
+.lead { color: var(--fg-muted); font-size: 16px; margin: 0 0 8px; }
+.labels { display: flex; flex-wrap: wrap; gap: 6px; }
+.label {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 2em;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+.label-type { color: var(--fg); }
+.label-status { color: var(--fg-muted); }
+.topic {
+  display: inline-block;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 22px;
+  color: var(--topic-fg);
+  background: var(--topic-bg);
+  border-radius: 2em;
+}
+
+.box { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 16px; overflow: hidden; }
+.box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+.counter {
+  background: var(--border-muted);
+  border-radius: 2em;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.box > .markdown-body { padding: 32px; }
+
+.row { display: flex; gap: 12px; align-items: flex-start; padding: 8px 16px; border-top: 1px solid var(--border-muted); }
+.row:first-child, .box-header + .row { border-top: none; }
+.row .octicon { margin-top: 2px; color: var(--fg-muted); }
+.row .icon-dir { color: var(--dir); }
+.row-main { display: flex; flex-wrap: wrap; column-gap: 12px; min-width: 0; flex: 1; }
+.row-name { color: var(--fg); word-break: break-all; }
+a.row-name:hover { color: var(--accent); }
+.row-title { color: var(--fg-muted); }
+.row-desc { flex-basis: 100%; color: var(--fg-muted); font-size: 12px; }
+
+.markdown-body .frontmatter { margin-bottom: 16px; }
+.markdown-body .frontmatter summary { cursor: pointer; color: var(--fg-muted); font-weight: 600; }
+.markdown-body table.fm { display: table; width: 100%; margin: 8px 0 0; font-size: 13px; }
+.markdown-body table.fm table.fm { margin: 0; }
+.markdown-body table.fm th { text-align: left; white-space: nowrap; vertical-align: top; width: 1%; }
+.markdown-body table.fm td { word-break: break-word; }
+.markdown-body ul.fm-list { margin: 0; padding-left: 1.2em; }
+.markdown-body .muted { color: var(--fg-muted); }
+.markdown-body .src-ref { font-size: 75%; }
+.markdown-body ol.sources li { word-break: break-word; }
+
+.box-header .btn {
+  margin-left: auto;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.box-header .btn:hover { background: var(--bg-muted); text-decoration: none; }
+
+/* Rendered CSV/TSV, like github.com's table view of a .csv file. */
+.markdown-body.csv-view { padding: 0; }
+.markdown-body.csv-view table { margin: 0; border-style: hidden; }
+.markdown-body table.csv-table td.ln,
+.markdown-body table.csv-table th.ln {
+  color: var(--fg-muted);
+  text-align: right;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.markdown-body .csv-note, .markdown-body .csv-error { color: var(--fg-muted); font-size: 12px; padding: 8px 16px; margin: 0; }
+.markdown-body .csv-error { color: #d1242f; }
+
+.site-footer { max-width: 1012px; margin: 0 auto; padding: 24px; color: var(--fg-muted); font-size: 12px; border-top: 1px solid var(--border-muted); }
+
+@media (max-width: 767px) {
+  .site-header { padding: 12px 16px; }
+  .container { padding: 16px; }
+  .box > .markdown-body { padding: 16px; }
+  .page-title { font-size: 20px; }
+  .lead { font-size: 14px; }
+  .markdown-body table.fm th { white-space: normal; width: auto; }
+  .site-footer { padding: 16px; }
+}

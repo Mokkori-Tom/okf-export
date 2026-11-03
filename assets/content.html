@@ -1,0 +1,90 @@
+{{define "content"}}
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    {{- range $i, $c := .Crumbs}}{{if $i}}<span class="sep">/</span>{{end}}{{if $c.URL}}<a href="{{$c.URL}}">{{$c.Name}}</a>{{else}}<strong>{{$c.Name}}</strong>{{end}}{{end -}}
+  </nav>
+
+  <div class="title-row">
+    <h1 class="page-title">{{.Title}}</h1>
+    {{- if .Meta.Description}}<p class="lead">{{.Meta.Description}}</p>{{end}}
+    {{- if or .Meta.Type .Meta.Status .Meta.Tags}}
+    <div class="labels">
+      {{- if .Meta.Type}}<span class="label label-type">{{.Meta.Type}}</span>{{end}}
+      {{- if .Meta.Status}}<span class="label label-status">{{.Meta.Status}}</span>{{end}}
+      {{- range .Meta.Tags}}<span class="topic">{{.}}</span>{{end}}
+    </div>
+    {{- end}}
+  </div>
+
+  {{- with .CSV}}
+  <div class="box">
+    <div class="box-header">
+      <svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25ZM6.5 6.5v8h7.75a.25.25 0 0 0 .25-.25V6.5Zm8-1.5V1.75a.25.25 0 0 0-.25-.25H6.5V5Zm-13 1.5v7.75c0 .138.112.25.25.25H5v-8ZM5 5V1.5H1.75a.25.25 0 0 0-.25.25V5Z"/></svg>
+      <span>{{$.FileName}}</span>
+      <span class="counter">{{.Rows}} {{if eq .Rows 1}}row{{else}}rows{{end}}</span>
+      {{- if .DownloadURL}}<a class="btn" href="{{.DownloadURL}}" download="{{$.FileName}}">Download</a>{{end}}
+    </div>
+    <div class="markdown-body csv-view">{{.Table}}</div>
+  </div>
+  {{- end}}
+
+  {{- if .Entries}}
+  <div class="box file-list">
+    {{- range .Entries}}
+    <div class="row">
+      {{- if .Dir}}
+      <svg class="octicon icon-dir" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"/></svg>
+      {{- else}}
+      <svg class="octicon icon-file" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"/></svg>
+      {{- end}}
+      <div class="row-main">
+        {{- if .URL}}<a class="row-name" href="{{.URL}}"{{if .Download}} download="{{.Download}}"{{end}}>{{.Name}}</a>{{else}}<span class="row-name">{{.Name}}</span>{{end}}
+        {{- if .Title}}<span class="row-title">{{.Title}}</span>{{end}}
+        {{- if .Description}}<span class="row-desc">{{.Description}}</span>{{end}}
+      </div>
+    </div>
+    {{- end}}
+  </div>
+  {{- end}}
+
+  {{- if or .Body .Front}}
+  <div class="box">
+    <div class="box-header">
+      <svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"/></svg>
+      <span>{{.FileName}}</span>
+    </div>
+    <article class="markdown-body">
+      {{- if .Front}}
+      <details class="frontmatter">
+        <summary>Metadata</summary>
+        {{.Front}}
+      </details>
+      {{- end}}
+      {{.Body}}
+      {{- if .Sources}}
+      <h2 id="sources">Sources</h2>
+      <ol class="sources">
+        {{- range .Sources}}
+        <li id="source-{{.ID}}">{{if .Resource}}<a href="{{.Resource}}">{{if .Title}}{{.Title}}{{else}}{{.Resource}}{{end}}</a>{{else}}{{.Title}}{{end}}{{if .ID}} <code>{{.ID}}</code>{{end}}</li>
+        {{- end}}
+      </ol>
+      {{- end}}
+    </article>
+  </div>
+  {{- end}}
+
+  {{- if .Backlinks}}
+  <div class="box backlinks">
+    <div class="box-header"><span>Cited by</span><span class="counter">{{len .Backlinks}}</span></div>
+    {{- range .Backlinks}}
+    <div class="row">
+      <svg class="octicon icon-file" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"/></svg>
+      <div class="row-main">
+        <a class="row-name" href="{{.URL}}">{{.Title}}</a>
+        <span class="row-title">{{.Name}}</span>
+        {{- if .Description}}<span class="row-desc">{{.Description}}</span>{{end}}
+      </div>
+    </div>
+    {{- end}}
+  </div>
+  {{- end}}
+{{end}}
