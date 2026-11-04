@@ -6,8 +6,9 @@
   <div class="title-row">
     <h1 class="page-title">{{.Title}}</h1>
     {{- if .Meta.Description}}<p class="lead">{{.Meta.Description}}</p>{{end}}
-    {{- if or .Meta.Type .Meta.Status .Meta.Tags}}
+    {{- if or .Meta.Type .Meta.Status .Meta.Tags .OKFVersion}}
     <div class="labels">
+      {{- if .OKFVersion}}<span class="label label-status" title="okf_version">OKF {{.OKFVersion}}</span>{{end}}
       {{- if .Meta.Type}}<span class="label label-type">{{.Meta.Type}}</span>{{end}}
       {{- if .Meta.Status}}<span class="label label-status">{{.Meta.Status}}</span>{{end}}
       {{- range .Meta.Tags}}<span class="topic">{{.}}</span>{{end}}

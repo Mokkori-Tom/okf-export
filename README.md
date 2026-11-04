@@ -33,8 +33,8 @@ go build -o okf-export .
 | 入力 | 出力 |
 | --- | --- |
 | `a/b.md` | `a/b.html` |
-| `a/index.md` | `a/index.html`（フォルダ一覧の下に表示） |
-| フォルダ | `<dir>/index.html`（ファイル一覧。`index.md` がなければ `README.md` を表示） |
+| `a/index.md` | `a/index.html`（フォルダ一覧の下に表示。`okf index` が作った一覧は、ファイル一覧と同じ内容なので表示しない） |
+| フォルダ | `<dir>/index.html`（ファイル一覧。表示する `index.md` がなければ `README.md` を表示） |
 | `a/x.csv`・`a/x.tsv` | `a/x.csv.html`（GitHub と同じく行番号付きの表） |
 | その他のテキストファイル（`.txt`・`.yaml`・`.go` など 1MB まで） | `a/x.txt.html`（行番号と色分け付きで表示） |
 | `/x.md`・`../x.md`・`x/`・`x.csv` へのリンク | 出力ページへのリンク |
@@ -43,10 +43,18 @@ go build -o okf-export .
 | その他のファイル（zip・docx など、1MB を超えるテキスト） | `a/x.zip.html`（「表示できません」とダウンロードボタン） |
 | ファイルへのリンク・フォルダ一覧のファイル | クリックすると上のページが開く（いきなりダウンロードしない）。ダウンロードはページのボタンから |
 | 本文の画像 | data URI で埋め込み。クリックするとその画像のページが開く（外部の画像は元の URL を新しいタブで開く） |
-| フォルダ一覧の各行 | ファイル名の横にフロントマターの `description`（フォルダは `index.md` の `description`） |
+| フォルダ一覧の各行 | ファイル名の横にフロントマターの `description` |
+| ルートの `index.md` の `okf_version` | トップページのタイトルの下に `OKF 0.2` のようなラベル |
 | フロントマター | タイトル、説明、type、status、tags を見出し部分に表示。全項目は「Metadata」に表として表示 |
 | `[^id]`（`sources` の id） | ページ末尾の Sources への番号付きリンク |
-| 被リンク | ページ末尾に「Cited by」として表示 |
+| 被リンク | ページ末尾に「Cited by」として表示（`okf backlinks` と同じく、`index.md`・`log.md` からのリンクは数えない） |
+
+## OKF の index.md
+
+OKF では `index.md` はフォルダの一覧で、フロントマターを持ちません。持てるのはバンドルのルートの `index.md` だけで、書けるのは `okf_version` だけです（仕様 §6・§8・§12）。okf-export もこれに合わせています。
+
+- ページのタイトルはフォルダ名（ルートはバンドル名）です。`index.md` の `title`・`description`・`tags` は使いません。仕様にないフロントマターがあれば、警告を出して無視します。
+- `okf index` が作った `index.md`（`# Index` の次が `Bundle root.` か ``Directory: `…` ``）は表示しません。手で書いた `index.md` は一覧の下に表示します。
 
 ## ページの機能
 

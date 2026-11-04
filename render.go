@@ -136,7 +136,12 @@ func (ex *exporter) parse(p string) (*doc, error) {
 			fmt.Fprintf(os.Stderr, "warning: %s: bad frontmatter: %v\n", p, err)
 		} else if len(n.Content) == 1 && n.Content[0].Kind == yaml.MappingNode {
 			d.front = n.Content[0]
-			_ = d.front.Decode(&d.meta) // best effort; odd shapes just leave fields empty
+			if path.Base(p) == "index.md" {
+				// index.md carries no metadata in OKF; see the directory pages.
+				checkIndexFront(p, d.front)
+			} else {
+				_ = d.front.Decode(&d.meta) // best effort; odd shapes just leave fields empty
+			}
 		}
 	}
 	ctx := parser.NewContext()
@@ -371,6 +376,20 @@ func linkSourceRefs(body string, sources []source) string {
 	}
 	out.WriteString(repl(body[last:]))
 	return out.String()
+}
+
+// checkIndexFront warns about frontmatter OKF does not allow in index.md:
+// only the bundle root's may have it, and only okf_version (§8, §12).
+func checkIndexFront(p string, front *yaml.Node) {
+	if p != "index.md" {
+		fmt.Fprintf(os.Stderr, "warning: %s: index.md must not have frontmatter (OKF §8); ignored\n", p)
+		return
+	}
+	for i := 0; i+1 < len(front.Content); i += 2 {
+		if k := front.Content[i].Value; k != "okf_version" {
+			fmt.Fprintf(os.Stderr, "warning: %s: only okf_version may be set in the root index.md (OKF §8, §12); %q ignored\n", p, k)
+		}
+	}
 }
 
 var atxH1 = regexp.MustCompile(`(?m)^#\s+(.+?)\s*#*\s*$`)
