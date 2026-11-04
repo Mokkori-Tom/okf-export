@@ -72,6 +72,18 @@ go build -o okf-export .
   `width` と `height` は CSS として出力します（数字だけなら px）。`.class`・`#id`・`title` なども使えます。
   画像の縦横比は保ちます。`height` だけを指定した画像が画面の幅に収まらないときは、高さも同じ比率で縮めます。`width` と `height` を両方指定すると、その枠の中に収めます。
 
+- **`<img>` タグ**（GitHub 互換）：GitHub で画像の大きさを変えるときの書き方も、そのまま使えます。`src` のパスは `![](...)` と同じく解決して埋め込み、`alt`・`title`・`width`・`height`・`align` だけを使います（`style` や `onerror` などは捨てます）。`-unsafe` を付けなくても効きます。
+
+  ```html
+  <img src="images/a.png" alt="説明" width="300">
+
+  <p align="center">
+    <img src="logo.png" width="200">
+  </p>
+  ```
+
+  `<img>` だけの HTML（`<p>`・`<div>` で囲んだものも可）に限ります。`<a>` で囲んだ画像など、ほかのタグが混ざった HTML は、これまでどおり除きます（`-unsafe` ならそのまま出力）。
+
 ## LLM に HTML を書かせる場合
 
 `okf-export` を実行できない環境では、[prompts/single-html.md](prompts/single-html.md) のプロンプトを LLM に渡すと、`-single` とほぼ同じ形式の1ファイルの HTML を書かせられます。画像は埋め込めないので、きちんと出力したいときは `okf-export -single` を使ってください。

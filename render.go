@@ -110,7 +110,8 @@ func newExporter(b *bundle, name string, unsafe, single bool) *exporter {
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
 			parser.WithAttribute(),
-			parser.WithASTTransformers(
+			parser.WithASTTransformers( // lower priority runs first
+				util.Prioritized(imgTags{}, 90), // before linkRewriter resolves the src
 				util.Prioritized(&linkRewriter{ex: ex}, 100),
 				util.Prioritized(inlineAttrs{}, 110),
 				util.Prioritized(alertTransformer{}, 120),
