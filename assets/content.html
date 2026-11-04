@@ -78,7 +78,7 @@
       {{- end}}
       <div class="row-main">
         {{- if .URL}}<a class="row-name" href="{{.URL}}"{{if .Download}} download="{{.Download}}"{{end}}>{{.Name}}</a>{{else}}<span class="row-name">{{.Name}}</span>{{end}}
-        {{- if .Description}}<span class="row-title">{{.Description}}</span>{{end}}
+        {{- if .DescHTML}}<span class="row-title row-md">{{.DescHTML}}</span>{{else if .Description}}<span class="row-title">{{.Description}}</span>{{end}}
       </div>
     </div>
     {{- end}}

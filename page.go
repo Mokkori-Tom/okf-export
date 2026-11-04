@@ -61,6 +61,7 @@ type entry struct {
 	Download    string
 	Title       string
 	Description string
+	DescHTML    template.HTML // description from index.md, rendered markdown
 }
 
 // csvView is the GitHub-style rendered view of a CSV/TSV file.
@@ -437,12 +438,12 @@ func (ex *exporter) crumbs(page, parent, leaf string) []crumb {
 
 // entries lists dir. desc holds the descriptions from dir's index.md; a
 // concept's own frontmatter description comes first.
-func (ex *exporter) entries(dir, page string, docs map[string]*doc, desc map[string]string) []entry {
+func (ex *exporter) entries(dir, page string, docs map[string]*doc, desc map[string]template.HTML) []entry {
 	var es []entry
 	for _, c := range ex.b.dirs[dir] {
 		name := path.Base(c)
 		if ex.b.isDir(c) {
-			es = append(es, entry{Dir: true, Name: name, URL: template.URL(ex.href(page, ex.b.pageFor(c))), Description: desc[c]})
+			es = append(es, entry{Dir: true, Name: name, URL: template.URL(ex.href(page, ex.b.pageFor(c))), DescHTML: desc[c]})
 			continue
 		}
 		if name == "index.md" {
@@ -458,7 +459,7 @@ func (ex *exporter) entries(dir, page string, docs map[string]*doc, desc map[str
 			e.URL = template.URL(ex.href(page, ex.b.pageFor(c)))
 		}
 		if e.Description == "" {
-			e.Description = desc[c]
+			e.DescHTML = desc[c]
 		}
 		es = append(es, e)
 	}
