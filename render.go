@@ -40,7 +40,6 @@ type doc struct {
 	blocks     []string        // HTML for @import'ed tables, see preprocess
 	links      map[string]bool // bundle paths of linked docs (for backlinks)
 	broken     int
-	quiet      bool // don't warn about links (rendered again, see inlineMarkdown)
 }
 
 // docMeta holds the frontmatter keys the page layout treats specially.
@@ -290,7 +289,7 @@ func (ex *exporter) rewrite(d *doc, dest string, image bool) (string, string, bo
 	case ex.b.files[p]:
 		i, err := ex.embed(p)
 		if err != nil {
-			if !ex.resErrs[p] && !d.quiet {
+			if !ex.resErrs[p] {
 				fmt.Fprintf(os.Stderr, "warning: %s: cannot embed %s: %v\n", d.path, p, err)
 				ex.resErrs[p] = true
 			}
@@ -303,9 +302,7 @@ func (ex *exporter) rewrite(d *doc, dest string, image bool) (string, string, bo
 		return fmt.Sprintf("okfres-%d-x", i), file, true
 	default:
 		d.broken++
-		if !d.quiet {
-			fmt.Fprintf(os.Stderr, "warning: %s: unresolved link %q\n", d.path, dest)
-		}
+		fmt.Fprintf(os.Stderr, "warning: %s: unresolved link %q\n", d.path, dest)
 		return "", "", false
 	}
 }

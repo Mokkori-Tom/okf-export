@@ -144,8 +144,6 @@ a:hover { text-decoration: underline; }
 .row-name { color: var(--fg); word-break: break-all; }
 a.row-name:hover { color: var(--accent); }
 .row-title { color: var(--fg-muted); min-width: 0; overflow-wrap: anywhere; }
-.row-md code { padding: .1em .4em; font: 85% ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--border-muted); border-radius: 6px; }
-.row-md img { max-height: 1.5em; vertical-align: middle; }
 .row-desc { flex-basis: 100%; color: var(--fg-muted); font-size: 12px; }
 
 .markdown-body .frontmatter { margin-bottom: 16px; }

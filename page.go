@@ -61,7 +61,6 @@ type entry struct {
 	Download    string
 	Title       string
 	Description string
-	DescHTML    template.HTML // description from index.md, rendered markdown
 }
 
 // csvView is the GitHub-style rendered view of a CSV/TSV file.
@@ -112,7 +111,6 @@ type pageData struct {
 	Front       template.HTML
 	Body        template.HTML
 	Sources     []source
-	Entries     []entry
 	Backlinks   []entry
 	OKFVersion  string // okf_version declared by the bundle root's index.md
 	CSV         *csvView
@@ -242,53 +240,35 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		st.tables++
 	}
 
-	// Directory pages: a GitHub-style file list plus index.md or README.md.
-	// In OKF, index.md is a directory listing (§6) without frontmatter, except
-	// that the bundle root's may declare okf_version (§8, §12). Its entries'
-	// descriptions go next to the files in the list, and an index.md that is
-	// only that listing is not shown, as the file list already says the same.
+	// Directory pages show the directory's index.md, the listing OKF uses to
+	// navigate a bundle (§8): headings with "[Title](url) - description"
+	// entries. Where there is none, one is made from the directory's contents,
+	// which §8 allows. index.md has no frontmatter, except that the bundle
+	// root's may declare okf_version (§12).
 	for _, dir := range sortedKeys(ex.b.dirs) {
 		page := ex.b.pageFor(dir)
 		data := &pageData{}
-		idx := docs[path.Join(dir, "index.md")]
-		var info indexInfo
-		if idx != nil {
-			info = ex.readIndex(idx)
-		}
-		var readme *doc
-		if idx != nil && !info.listing {
-			readme = idx
-		} else {
-			for _, n := range []string{"README.md", "readme.md"} {
-				if d := docs[path.Join(dir, n)]; d != nil {
-					readme = d
-					break
-				}
-			}
-		}
-		if readme != nil {
-			data.FileName = path.Base(readme.path)
-			data.Body = template.HTML(readme.body) // README.html shares this directory
-			data.Sources = readme.meta.Sources
-			data.File = ex.fileView(readme.path, readme.raw, true)
+		if idx := docs[path.Join(dir, "index.md")]; idx != nil {
+			data.FileName = "index.md"
+			data.Body = template.HTML(idx.body)
+			data.Sources = idx.meta.Sources
+			data.File = ex.fileView(idx.path, idx.raw, true)
 			data.File.Outline = true
-			data.search.Text = plainText(readme.body)
-		}
-		if idx != nil {
 			data.Backlinks = ex.backlinks(idx, backlinks[idx.path])
 			if dir == "" {
 				data.OKFVersion = frontValue(idx.front, "okf_version")
 			}
+		} else {
+			data.FileName = "Index"
+			data.Body = template.HTML(synthIndex(ex.entries(dir, page, docs)))
 		}
+		data.search.Text = plainText(string(data.Body))
 		data.Title = path.Base(dir)
-		if dir == "" {
-			data.Title = ex.name
-		}
 		data.Crumbs = ex.crumbs(page, path.Dir(dir), path.Base(dir))
 		if dir == "" {
+			data.Title = ex.name
 			data.Crumbs = []crumb{{Name: ex.name}}
 		}
-		data.Entries = ex.entries(dir, page, docs, info.desc)
 		add(page, data)
 		st.dirs++
 	}
@@ -436,18 +416,17 @@ func (ex *exporter) crumbs(page, parent, leaf string) []crumb {
 	return append(cs, crumb{Name: leaf})
 }
 
-// entries lists dir. desc holds the descriptions from dir's index.md; a
-// concept's own frontmatter description comes first.
-func (ex *exporter) entries(dir, page string, docs map[string]*doc, desc map[string]template.HTML) []entry {
+// entries lists dir's contents for a generated index, folders first.
+func (ex *exporter) entries(dir, page string, docs map[string]*doc) []entry {
 	var es []entry
 	for _, c := range ex.b.dirs[dir] {
 		name := path.Base(c)
 		if ex.b.isDir(c) {
-			es = append(es, entry{Dir: true, Name: name, URL: template.URL(ex.href(page, ex.b.pageFor(c))), DescHTML: desc[c]})
+			es = append(es, entry{Dir: true, Name: name, URL: template.URL(ex.href(page, ex.b.pageFor(c)))})
 			continue
 		}
 		if name == "index.md" {
-			continue // shown below the list
+			continue
 		}
 		e := entry{Name: name}
 		switch d := docs[c]; {
@@ -457,9 +436,6 @@ func (ex *exporter) entries(dir, page string, docs map[string]*doc, desc map[str
 			e.Description = d.meta.Description
 		default:
 			e.URL = template.URL(ex.href(page, ex.b.pageFor(c)))
-		}
-		if e.Description == "" {
-			e.DescHTML = desc[c]
 		}
 		es = append(es, e)
 	}
@@ -516,6 +492,40 @@ func humanSize(n int64) string {
 		return fmt.Sprintf("%.1f MB", float64(n)/(1024*1024))
 	}
 	return fmt.Sprintf("%.1f GB", float64(n)/(1024*1024*1024))
+}
+
+// synthIndex writes an index in the shape of OKF §8 for a directory without
+// an index.md: concepts by title with their descriptions, then other files,
+// then subdirectories.
+func synthIndex(es []entry) string {
+	var concepts, files, dirs strings.Builder
+	item := func(b *strings.Builder, e entry, label string) {
+		fmt.Fprintf(b, `<li><a href="%s">%s</a>`, html.EscapeString(string(e.URL)), html.EscapeString(label))
+		if e.Description != "" {
+			b.WriteString(" - " + html.EscapeString(e.Description))
+		}
+		b.WriteString("</li>\n")
+	}
+	for _, e := range es {
+		switch {
+		case e.Dir:
+			item(&dirs, e, e.Name+"/")
+		case e.Title != "":
+			item(&concepts, e, e.Title)
+		default:
+			item(&files, e, e.Name)
+		}
+	}
+	var b strings.Builder
+	for _, s := range []struct{ head, items string }{{"Concepts", concepts.String()}, {"Files", files.String()}, {"Subdirectories", dirs.String()}} {
+		if s.items != "" {
+			fmt.Fprintf(&b, "<h2>%s</h2>\n<ul>\n%s</ul>\n", s.head, s.items)
+		}
+	}
+	if b.Len() == 0 {
+		return `<p class="muted">This directory is empty.</p>`
+	}
+	return b.String()
 }
 
 func sortedKeys[V any](m map[string]V) []string {

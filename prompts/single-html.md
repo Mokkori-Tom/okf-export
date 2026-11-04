@@ -37,7 +37,7 @@
 # ページの作り方
 バンドル内の各ファイル・各フォルダを「ページ」とし、それぞれ <main class="container okf-page" data-page="<出力パス>" data-title="<タイトル> · <バンドル名>" hidden> に入れて、全部を1つの HTML に並べる。出力パスは次のとおり。
 - a/b.md → a/b.html
-- a/index.md → a/index.html（フォルダ a のページに統合する）
+- a/index.md → a/index.html（フォルダ a のページとして表示する）
 - フォルダ a → a/index.html、ルートは index.html
 - a/x.csv・a/x.tsv → a/x.csv.html・a/x.tsv.html
 - その他のテキストファイル a/x.txt・a/x.yaml など → a/x.txt.html・a/x.yaml.html
@@ -82,11 +82,9 @@
 - 中身を行番号付きの等幅表示で見せる。
 
 ## フォルダのページ
-- GitHub のファイル一覧と同じ枠: 先にフォルダ（青いフォルダのアイコン）、次にファイル（ファイルのアイコン）を、それぞれ名前の大文字小文字を区別しない順で並べる。index.md は一覧に出さない。
-- 各行はアイコンと名前（ページへのリンク）。名前の右に説明を薄い文字で表示する（文書はフロントマターの description、なければ下の index.md の行の説明）。見出しやタイトルは出さない。説明がなければ何も出さない。
-- OKF の index.md はフォルダの一覧で、フロントマターを持たない（ルートの index.md だけが okf_version を持てる）。index.md の title・description・tags は使わない。
-- index.md の本文は「見出し」と「* [名前](リンク) - 説明」の行の一覧（表で「| [名前](リンク) | … | 説明 |」と書かれていることもある）。各行の説明は、リンク先のファイルやフォルダ（"sub/" や "sub/index.md" はフォルダ sub）の行の名前の右に出す。文書にフロントマターの description があればそちらを優先する。フォルダの説明はこの方法でしか書けない。説明の中の Markdown（太字・コード・リンク）も本文と同じ規則で HTML にする。
-- 一覧の下に index.md を Markdown のページと同じ枠（ボタン付き、Metadata 欄なし）で表示する。ただし、見出しと一覧の行（と「Bundle root.」「Directory: `…`」の行）しかない index.md は、ファイル一覧と同じ内容なので表示しない。表示する index.md がなければ README.md を表示する。
+- GitHub のようなファイル一覧の枠は作らない。代わりに、そのフォルダの index.md を Markdown のページと同じ枠（ボタン付き、Metadata 欄なし）で表示する。OKF の index.md は「見出し」と「* [タイトル](リンク) - 説明」の行でできた目次なので、それがそのままフォルダの目次になる。
+- OKF の index.md はフロントマターを持たない（ルートの index.md だけが okf_version を持てる）。index.md の title・description・tags は使わない。
+- index.md が無いフォルダでは、同じ形の目次を作る。見出し「Concepts」の下に Markdown の文書を「タイトル（リンク） - フロントマターの description」で、「Files」の下にその他のファイルを名前で、「Subdirectories」の下にサブフォルダを「名前/」で並べる（空の見出しは出さない）。
 - タイトルはフォルダ名（ルートはバンドル名）。
 - ルートの index.md に okf_version があれば、トップページのタイトルの下に「OKF 0.2」のようなふちどりのラベルを出す。
 
