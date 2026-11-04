@@ -28,7 +28,33 @@
   </div>
   {{- end}}
 
-  {{- if and .File (not .File.Rendered)}}
+  {{- with .Media}}
+  <div class="box okf-file">
+    <div class="box-header">
+      <svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"/></svg>
+      <span class="file-name">{{$.FileName}}</span>
+      {{- if .Size}}<span class="counter">{{.Size}}</span>{{end}}
+      {{- if eq .Kind "image"}}<span class="counter img-dims" hidden></span>{{end}}
+      {{- template "actions" $.File}}
+    </div>
+    {{- if eq .Kind "image"}}
+    <div class="media-view image-view"><img src="{{.Src}}" alt="{{$.FileName}}"></div>
+    {{- else if eq .Kind "pdf"}}
+    <div class="media-view pdf-view">
+      <iframe title="{{$.FileName}}" hidden></iframe>
+      <p class="media-note">This browser can't show PDFs in the page.</p>
+      {{- if $.File.DownloadURL}}<a class="btn" href="{{.Src}}" download="{{$.FileName}}">Download raw file</a>{{end}}
+    </div>
+    {{- else}}
+    <div class="media-view">
+      <p class="media-note">{{if eq .Kind "large"}}This file is too big to display.{{else}}Binary file not shown.{{end}}</p>
+      {{- if $.File.DownloadURL}}<a class="btn" href="{{.Src}}" download="{{$.FileName}}">Download raw file</a>{{end}}
+    </div>
+    {{- end}}
+  </div>
+  {{- end}}
+
+  {{- if and .File (not .File.Rendered) (not .Media)}}
   <div class="box okf-file">
     <div class="box-header">
       <svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"/></svg>

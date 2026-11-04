@@ -238,3 +238,16 @@ a.row-name:hover { color: var(--accent); }
 .markdown-body .markdown-alert-title .octicon { margin-right: 8px; }
 /* {width=..} {height=..} on images: never stretch; see fitImages in app.js. */
 .markdown-body img[style] { object-fit: contain; }
+
+/* Images, PDFs and other files shown on their own page. */
+.media-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px 16px; text-align: center; }
+.media-view .media-note { margin: 0; color: var(--fg-muted); }
+.image-view { padding: 16px; }
+.image-view img {
+  max-width: 100%;
+  /* checkerboard, so transparent parts of the image show */
+  background: conic-gradient(var(--bg-muted) 25%, var(--bg) 0 50%, var(--bg-muted) 0 75%, var(--bg) 0) 0 0 / 16px 16px;
+}
+.pdf-view.loaded { padding: 0; }
+.pdf-view iframe { width: 100%; height: 80vh; border: 0; }
+.markdown-body a:has(> img) { display: inline-block; }

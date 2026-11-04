@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"html"
 	"html/template"
+	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -78,6 +80,15 @@ type fileView struct {
 	Outline     bool
 }
 
+// mediaView is the page of a file that is neither markdown, a table nor
+// text: an image or PDF shown in the page, or anything else with only a
+// download button, like GitHub's file view.
+type mediaView struct {
+	Kind string // "image", "pdf", "large" (text over maxTextSize) or "binary"
+	Src  template.URL
+	Size string
+}
+
 // searchEntry is one page in the client-side search index.
 type searchEntry struct {
 	Page        string `json:"u"`
@@ -104,13 +115,14 @@ type pageData struct {
 	Backlinks   []entry
 	CSV         *csvView
 	File        *fileView
+	Media       *mediaView
 	Stylesheets template.CSS
 	LiveReload  bool
 
 	search searchEntry
 }
 
-type stats struct{ pages, dirs, tables, texts, resources, broken int }
+type stats struct{ pages, dirs, tables, texts, files, resources, broken int }
 
 // build renders every page of the bundle. Page bodies may still contain
 // resource placeholders; see fillResources and inlineResources.
@@ -181,6 +193,27 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		data.Crumbs = ex.crumbs(page, path.Dir(p), path.Base(p))
 		add(page, data)
 		st.texts++
+	}
+
+	// Every other file: images and PDFs are shown, the rest can be downloaded.
+	for _, p := range sortedKeys(ex.b.files) {
+		if isTable(p) || ex.b.texts[p] || strings.EqualFold(path.Ext(p), ".md") {
+			continue
+		}
+		page := ex.b.pageFor(p)
+		data := &pageData{Title: path.Base(p), FileName: path.Base(p)}
+		data.File = &fileView{Name: path.Base(p)}
+		data.Media = &mediaView{Kind: mediaKind(ex.abs(p))}
+		if info, err := os.Stat(ex.abs(p)); err == nil {
+			data.Media.Size = humanSize(info.Size())
+		}
+		if i, err := ex.embed(p); err == nil {
+			data.File.DownloadURL = template.URL(fmt.Sprintf("okfres-%d-x", i))
+			data.Media.Src = data.File.DownloadURL
+		}
+		data.Crumbs = ex.crumbs(page, path.Dir(p), path.Base(p))
+		add(page, data)
+		st.files++
 	}
 
 	// CSV/TSV pages, like GitHub's rendered table view.
@@ -384,13 +417,8 @@ func (ex *exporter) entries(dir, page string, docs map[string]*doc) []entry {
 			e.URL = template.URL(ex.href(page, d.page))
 			e.Title = d.meta.Title
 			e.Description = d.meta.Description
-		case isTable(c) || ex.b.texts[c]:
-			e.URL = template.URL(ex.href(page, ex.b.pageFor(c)))
 		default:
-			if i, err := ex.embed(c); err == nil {
-				e.URL = template.URL(fmt.Sprintf("okfres-%d-x", i))
-				e.Download = name
-			}
+			e.URL = template.URL(ex.href(page, ex.b.pageFor(c)))
 		}
 		es = append(es, e)
 	}
@@ -416,6 +444,37 @@ func (ex *exporter) fileView(p string, raw []byte, rendered bool) *fileView {
 		}
 	}
 	return f
+}
+
+func mediaKind(file string) string {
+	switch strings.ToLower(path.Ext(file)) {
+	case ".pdf":
+		return "pdf"
+	}
+	if isImage(file) {
+		return "image"
+	}
+	if f, err := os.Open(file); err == nil {
+		defer f.Close()
+		head := make([]byte, 8192)
+		n, _ := io.ReadFull(f, head)
+		if !bytes.Contains(head[:n], []byte{0}) && strings.HasPrefix(http.DetectContentType(head[:n]), "text/") {
+			return "large" // isTextFile only rejects such files for their size
+		}
+	}
+	return "binary"
+}
+
+func humanSize(n int64) string {
+	switch {
+	case n < 1024:
+		return fmt.Sprintf("%d Bytes", n)
+	case n < 1024*1024:
+		return fmt.Sprintf("%.1f KB", float64(n)/1024)
+	case n < 1024*1024*1024:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1024*1024))
+	}
+	return fmt.Sprintf("%.1f GB", float64(n)/(1024*1024*1024))
 }
 
 func sortedKeys[V any](m map[string]V) []string {

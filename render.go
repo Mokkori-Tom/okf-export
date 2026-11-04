@@ -112,8 +112,9 @@ func newExporter(b *bundle, name string, unsafe, single bool) *exporter {
 			parser.WithAttribute(),
 			parser.WithASTTransformers( // lower priority runs first
 				util.Prioritized(imgTags{}, 90), // before linkRewriter resolves the src
+				// before linkRewriter wraps images in links, so {...} after an image stays on it
+				util.Prioritized(inlineAttrs{}, 95),
 				util.Prioritized(&linkRewriter{ex: ex}, 100),
-				util.Prioritized(inlineAttrs{}, 110),
 				util.Prioritized(alertTransformer{}, 120),
 			),
 		),
@@ -163,6 +164,11 @@ type linkRewriter struct{ ex *exporter }
 func (t *linkRewriter) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
 	d := pc.Get(ctxDocKey).(*doc)
 	var tableImages []*ast.Image
+	type linkImage struct {
+		img  *ast.Image
+		href string
+	}
+	var linkImages []linkImage
 	_ = ast.Walk(node, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
@@ -183,12 +189,32 @@ func (t *linkRewriter) Transform(node *ast.Document, reader text.Reader, pc pars
 				tableImages = append(tableImages, n)
 				return ast.WalkSkipChildren, nil
 			}
-			if dest, _, ok := t.ex.rewrite(d, string(n.Destination), true); ok {
+			orig := string(n.Destination)
+			if _, inLink := n.Parent().(*ast.Link); !inLink {
+				// GitHub opens an image when it is clicked; here that is its page.
+				if p, _, ok := t.ex.resolveLocal(d.path, orig); ok && t.ex.b.files[p] {
+					linkImages = append(linkImages, linkImage{n, t.ex.href(d.page, t.ex.b.pageFor(p))})
+				} else if strings.HasPrefix(orig, "https://") || strings.HasPrefix(orig, "http://") {
+					linkImages = append(linkImages, linkImage{n, orig})
+				}
+			}
+			if dest, _, ok := t.ex.rewrite(d, orig, true); ok {
 				n.Destination = []byte(dest)
 			}
 		}
 		return ast.WalkContinue, nil
 	})
+	for _, li := range linkImages {
+		link := ast.NewLink()
+		link.Destination = []byte(li.href)
+		if strings.HasPrefix(li.href, "http") {
+			link.SetAttributeString("target", []byte("_blank"))
+			link.SetAttributeString("rel", []byte("noopener noreferrer"))
+		}
+		parent := li.img.Parent()
+		parent.ReplaceChild(parent, li.img, link)
+		link.AppendChild(link, li.img)
+	}
 	for _, img := range tableImages {
 		dest, _, _ := t.ex.rewrite(d, string(img.Destination), false)
 		link := ast.NewLink()
@@ -248,10 +274,12 @@ func (ex *exporter) rewrite(d *doc, dest string, image bool) (string, string, bo
 			d.links[idx] = true
 		}
 		return ex.href(d.page, ex.b.pageFor(p)) + suffix, "", true
-	case ex.b.files[p] && (isTable(p) || ex.b.texts[p]) && !image:
-		return ex.href(d.page, ex.b.pageFor(p)) + suffix, "", true
 	case ex.b.files[p] && strings.EqualFold(path.Ext(p), ".md") && !image:
 		d.links[p] = true
+		return ex.href(d.page, ex.b.pageFor(p)) + suffix, "", true
+	case ex.b.files[p] && !image:
+		// Like GitHub, a link to a file opens its page; downloading is a
+		// button there.
 		return ex.href(d.page, ex.b.pageFor(p)) + suffix, "", true
 	case ex.b.files[p]:
 		i, err := ex.embed(p)

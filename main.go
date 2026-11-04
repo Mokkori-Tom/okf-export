@@ -55,8 +55,8 @@ func main() {
 	} else {
 		check(ex.writeSite(*out, pages))
 	}
-	fmt.Printf("wrote %d concept pages, %d table pages, %d text pages, %d directory pages, embedded %d resources to %s\n",
-		st.pages, st.tables, st.texts, st.dirs, st.resources, *out)
+	fmt.Printf("wrote %d concept pages, %d table pages, %d text pages, %d other file pages, %d directory pages, embedded %d resources to %s\n",
+		st.pages, st.tables, st.texts, st.files, st.dirs, st.resources, *out)
 	if st.broken > 0 {
 		fmt.Fprintf(os.Stderr, "warning: %d unresolved local link(s)\n", st.broken)
 	}
@@ -171,8 +171,8 @@ func (b *bundle) pageFor(p string) string {
 	if path.Base(p) == "index.md" {
 		return path.Join(path.Dir(p), "index.html")
 	}
-	if isTable(p) || b.texts[p] {
-		return p + ".html" // like GitHub's rendered CSV view
+	if b.files[p] && !strings.EqualFold(path.Ext(p), ".md") {
+		return p + ".html" // every other file gets a page, like GitHub's file view
 	}
 	return strings.TrimSuffix(p, path.Ext(p)) + ".html"
 }

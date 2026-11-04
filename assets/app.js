@@ -60,6 +60,39 @@
   window.addEventListener("hashchange", function () { setTimeout(fitImages); }); // single-file page switch
   fitImages();
 
+  // Image pages: show the size in pixels next to the file size.
+  document.querySelectorAll(".image-view img").forEach(function (img) {
+    function dims() {
+      var c = img.closest(".okf-file").querySelector(".img-dims");
+      if (!c || !img.naturalWidth) return;
+      c.textContent = img.naturalWidth + " × " + img.naturalHeight;
+      c.hidden = false;
+    }
+    if (img.complete) dims(); else img.addEventListener("load", dims);
+  });
+
+  // PDF pages: open the embedded file in the browser's PDF viewer. A blob:
+  // URL works where a data: URL is refused. Browsers without a viewer
+  // (most phones) keep the note and the download button. In the single-file
+  // export only the page being shown is loaded.
+  function showPDFs() {
+    if (navigator.pdfViewerEnabled === false || !window.fetch) return;
+    document.querySelectorAll(".pdf-view:not(.loaded)").forEach(function (v) {
+      var page = v.closest(".okf-page"), a = v.querySelector("a[download]");
+      if ((page && page.hidden) || !a || !a.href) return;
+      v.classList.add("loaded");
+      fetch(a.href).then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
+        var f = v.querySelector("iframe");
+        f.src = URL.createObjectURL(new Blob([buf], { type: "application/pdf" }));
+        f.hidden = false;
+        v.querySelector(".media-note").hidden = true;
+        a.hidden = true;
+      }, function () { v.classList.remove("loaded"); });
+    });
+  }
+  window.addEventListener("hashchange", function () { setTimeout(showPDFs); });
+  showPDFs();
+
   // Copy buttons on code blocks.
   document.querySelectorAll(".markdown-body.rendered pre").forEach(function (pre) {
     var wrap = document.createElement("div");
