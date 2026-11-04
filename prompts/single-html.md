@@ -58,7 +58,7 @@
   - Download raw file: 元のファイルを data:text/markdown;charset=utf-8;base64,… の href と download="<ファイル名>" で保存させる。
   - Outline: ヘッダー行の下に、本文の h1〜h6 の一覧を開閉する。レベルごとに字下げし、各項目は見出しの id へのリンク。
 - 元の Markdown は <pre class="raw-source" hidden> などに HTML エスケープして入れておき、Raw 表示・コピー・ダウンロードはそれを使う。
-- 本文の先頭に <details><summary>Metadata</summary> を置き、フロントマターの全項目を「キー | 値」の縦の表で表示する。入れ子は表の入れ子、配列は箇条書き、空の値は「—」、http(s) の値はリンク。
+- 本文の先頭に <details><summary>Metadata</summary> を置き、フロントマターのうち、ほかの場所に出していない項目（title・description・type・status・tags・sources 以外。resource など）を「キー | 値」の縦の表で表示する。残る項目が無ければ Metadata 欄は作らない。入れ子は表の入れ子、配列は箇条書き、空の値は「—」、http(s) の値はリンク。
 - 本文は GitHub Flavored Markdown として HTML にする（表、取り消し線、タスクリスト、自動リンク、脚注）。生の HTML タグは出力しない（テキストとしてエスケープする）。
 - 見出しには id を付ける（英数字は小文字にして空白を - に。日本語だけの見出しは heading、heading-1 … と連番）。行末の {#id} があればそれを id にする。
 - コードブロックは <pre><code> で出し、各コードブロックの右上にコピーボタンを付ける（ふだんは非表示、マウスを乗せると表示。タッチ端末では常に表示）。押すとコードだけをコピーする。

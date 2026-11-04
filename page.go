@@ -364,8 +364,8 @@ func (ex *exporter) docPage(d *doc, refs []*doc) *pageData {
 		Body:     template.HTML(d.body),
 		Sources:  d.meta.Sources,
 	}
-	if d.front != nil {
-		data.Front = template.HTML(renderYAML(d.front))
+	if rest := unshownFront(d); rest != nil {
+		data.Front = template.HTML(renderYAML(rest))
 	}
 	data.File = ex.fileView(d.path, d.raw, true)
 	data.File.Outline = true
@@ -535,6 +535,33 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(ks)
 	return ks
+}
+
+// unshownFront returns d's frontmatter without the keys the page already
+// shows elsewhere: title, description, type, status and tags in the title
+// row, sources at the end. nil if nothing is left.
+func unshownFront(d *doc) *yaml.Node {
+	if d.front == nil {
+		return nil
+	}
+	shown := map[string]bool{
+		"title":       d.frontTitle,
+		"description": d.meta.Description != "",
+		"type":        d.meta.Type != "",
+		"status":      d.meta.Status != "",
+		"tags":        len(d.meta.Tags) > 0,
+		"sources":     len(d.meta.Sources) > 0,
+	}
+	rest := &yaml.Node{Kind: yaml.MappingNode}
+	for i := 0; i+1 < len(d.front.Content); i += 2 {
+		if !shown[d.front.Content[i].Value] {
+			rest.Content = append(rest.Content, d.front.Content[i], d.front.Content[i+1])
+		}
+	}
+	if len(rest.Content) == 0 {
+		return nil
+	}
+	return rest
 }
 
 // renderYAML renders frontmatter as nested key/value tables, the way GitHub

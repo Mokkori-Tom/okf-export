@@ -43,7 +43,7 @@ go build -o okf-export .
 | ファイルへのリンク | クリックすると上のページが開く（いきなりダウンロードしない）。ダウンロードはページのボタンから |
 | 本文の画像 | data URI で埋め込み。クリックするとその画像のページが開く（外部の画像は元の URL を新しいタブで開く） |
 | ルートの `index.md` の `okf_version` | トップページのタイトルの下に `OKF 0.2` のようなラベル |
-| フロントマター | タイトル、説明、type、status、tags を見出し部分に表示。全項目は「Metadata」に表として表示 |
+| フロントマター | タイトル、説明、type、status、tags を見出し部分に、sources をページ末尾の Sources に表示。それ以外の項目（resource など）は「Metadata」に表として表示（無ければ Metadata 欄は出さない） |
 | `[^id]`（`sources` の id） | ページ末尾の Sources への番号付きリンク |
 | 被リンク | ページ末尾に「Cited by」として表示（`okf backlinks` と同じく、`index.md`・`log.md` からのリンクは数えない） |
 
