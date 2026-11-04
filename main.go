@@ -55,8 +55,8 @@ func main() {
 	} else {
 		check(ex.writeSite(*out, pages))
 	}
-	fmt.Printf("wrote %d concept pages, %d table pages, %d directory pages, embedded %d resources to %s\n",
-		st.pages, st.tables, st.dirs, st.resources, *out)
+	fmt.Printf("wrote %d concept pages, %d table pages, %d text pages, %d directory pages, embedded %d resources to %s\n",
+		st.pages, st.tables, st.texts, st.dirs, st.resources, *out)
 	if st.broken > 0 {
 		fmt.Fprintf(os.Stderr, "warning: %d unresolved local link(s)\n", st.broken)
 	}
@@ -101,6 +101,7 @@ type bundle struct {
 	root  string
 	docs  []string            // markdown files
 	files map[string]bool     // every regular file
+	texts map[string]bool     // plain text files shown as a code page, see isTextFile
 	dirs  map[string][]string // directory -> direct children (files and subdirs)
 }
 
@@ -112,7 +113,7 @@ func loadBundle(root string) (*bundle, error) {
 	if !st.IsDir() {
 		return nil, fmt.Errorf("%s is not a directory", root)
 	}
-	b := &bundle{root: root, files: map[string]bool{}, dirs: map[string][]string{"": nil}}
+	b := &bundle{root: root, files: map[string]bool{}, texts: map[string]bool{}, dirs: map[string][]string{"": nil}}
 	err = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -144,6 +145,8 @@ func loadBundle(root string) (*bundle, error) {
 		b.dirs[parent] = append(b.dirs[parent], rel)
 		if strings.EqualFold(path.Ext(rel), ".md") {
 			b.docs = append(b.docs, rel)
+		} else if isTextFile(rel, p, d) {
+			b.texts[rel] = true
 		}
 		return nil
 	})
@@ -168,7 +171,7 @@ func (b *bundle) pageFor(p string) string {
 	if path.Base(p) == "index.md" {
 		return path.Join(path.Dir(p), "index.html")
 	}
-	if isTable(p) {
+	if isTable(p) || b.texts[p] {
 		return p + ".html" // like GitHub's rendered CSV view
 	}
 	return strings.TrimSuffix(p, path.Ext(p)) + ".html"

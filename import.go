@@ -43,10 +43,10 @@ func isImage(p string) bool {
 //	@import "file"          <!-- @import "file" -->
 //	![](file.csv)           ![[ file ]]
 var (
-	importLine   = regexp.MustCompile(`^\s{0,3}@import\s+"([^"]+)"(?:\s*\{[^}]*\})?\s*$`)
-	importHTML   = regexp.MustCompile(`^\s{0,3}<!--\s*@import\s+"([^"]+)"(?:\s*\{[^}]*\})?\s*-->\s*$`)
+	importLine   = regexp.MustCompile(`^\s{0,3}@import\s+"([^"]+)"(?:\s*(\{[^}]*\}))?\s*$`)
+	importHTML   = regexp.MustCompile(`^\s{0,3}<!--\s*@import\s+"([^"]+)"(?:\s*(\{[^}]*\}))?\s*-->\s*$`)
 	imageCSVLine = regexp.MustCompile(`(?i)^\s{0,3}!\[[^\]]*\]\(\s*<?([^)\s>]+\.(?:csv|tsv))>?(?:\s+"[^"]*")?\s*\)\s*$`)
-	wikiEmbed    = regexp.MustCompile(`^\s{0,3}!\[\[\s*([^\]|]+?)\s*(?:\|[^\]]*)?\]\](?:\{[^}]*\})?\s*$`)
+	wikiEmbed    = regexp.MustCompile(`^\s{0,3}!\[\[\s*([^\]|]+?)\s*(?:\|[^\]]*)?\]\](\{[^}]*\})?\s*$`)
 	fenceOpen    = regexp.MustCompile("^\\s{0,3}(`{3,}|~{3,})")
 	blockMarker  = regexp.MustCompile(`<p>OKFBLOCK-(\d+)-X</p>`)
 )
@@ -71,15 +71,15 @@ func (ex *exporter) preprocess(d *doc, from string, src []byte, seen map[string]
 			out.WriteString(line)
 			continue
 		}
-		target, wiki := "", false
+		target, attrs, wiki := "", "", false
 		if m := importLine.FindStringSubmatch(trimmed); m != nil {
-			target = m[1]
+			target, attrs = m[1], m[2]
 		} else if m := importHTML.FindStringSubmatch(trimmed); m != nil {
-			target = m[1]
+			target, attrs = m[1], m[2]
 		} else if m := imageCSVLine.FindStringSubmatch(trimmed); m != nil {
 			target = m[1]
 		} else if m := wikiEmbed.FindStringSubmatch(trimmed); m != nil {
-			target, wiki = m[1], true
+			target, attrs, wiki = m[1], m[2], true
 		}
 		if target == "" {
 			out.WriteString(line)
@@ -96,7 +96,7 @@ func (ex *exporter) preprocess(d *doc, from string, src []byte, seen map[string]
 			out.WriteString(line)
 			continue
 		}
-		out.WriteString(ex.expand(d, p, seen))
+		out.WriteString(ex.expand(d, p, attrs, seen))
 		out.WriteString("\n")
 	}
 	return out.Bytes()
@@ -125,11 +125,12 @@ func (ex *exporter) resolveImport(from, target string, wiki bool) string {
 }
 
 // expand returns the markdown that replaces an import of bundle file p.
-func (ex *exporter) expand(d *doc, p string, seen map[string]bool) string {
+// attrs is an optional "{width=300}" list, kept for images.
+func (ex *exporter) expand(d *doc, p, attrs string, seen map[string]bool) string {
 	switch {
 	case isImage(p):
 		// The link rewriter embeds it like any other image.
-		return "![" + escapeMD(path.Base(p)) + "](</" + p + ">)\n"
+		return "![" + escapeMD(path.Base(p)) + "](</" + p + ">)" + attrs + "\n"
 	case isTable(p):
 		data, err := os.ReadFile(ex.abs(p))
 		if err != nil {

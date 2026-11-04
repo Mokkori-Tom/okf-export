@@ -21,6 +21,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer"
 	gmhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
@@ -34,6 +35,7 @@ type doc struct {
 	front      *yaml.Node // mapping node, nil when there is no frontmatter
 	meta       docMeta
 	frontTitle bool            // title came from frontmatter rather than a fallback
+	raw        []byte          // source as read from disk
 	body       string          // rendered HTML
 	blocks     []string        // HTML for @import'ed tables, see preprocess
 	links      map[string]bool // bundle paths of linked docs (for backlinks)
@@ -107,8 +109,14 @@ func newExporter(b *bundle, name string, unsafe, single bool) *exporter {
 		),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
-			parser.WithASTTransformers(util.Prioritized(&linkRewriter{ex: ex}, 100)),
+			parser.WithAttribute(),
+			parser.WithASTTransformers(
+				util.Prioritized(&linkRewriter{ex: ex}, 100),
+				util.Prioritized(inlineAttrs{}, 110),
+				util.Prioritized(alertTransformer{}, 120),
+			),
 		),
+		goldmark.WithRendererOptions(renderer.WithNodeRenderers(util.Prioritized(alertRenderer{}, 500))),
 	)...)
 	return ex
 }
@@ -118,7 +126,7 @@ func (ex *exporter) parse(p string) (*doc, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &doc{path: p, page: ex.b.pageFor(p), links: map[string]bool{}}
+	d := &doc{path: p, page: ex.b.pageFor(p), raw: src, links: map[string]bool{}}
 	front, body := splitFrontmatter(src)
 	if front != nil {
 		var n yaml.Node
@@ -239,7 +247,7 @@ func (ex *exporter) rewrite(d *doc, dest string, image bool) (string, string, bo
 			d.links[idx] = true
 		}
 		return ex.href(d.page, ex.b.pageFor(p)) + suffix, "", true
-	case ex.b.files[p] && isTable(p) && !image:
+	case ex.b.files[p] && (isTable(p) || ex.b.texts[p]) && !image:
 		return ex.href(d.page, ex.b.pageFor(p)) + suffix, "", true
 	case ex.b.files[p] && strings.EqualFold(path.Ext(p), ".md") && !image:
 		d.links[p] = true

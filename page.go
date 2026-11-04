@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
+	"html"
 	"html/template"
 	"os"
 	"path"
@@ -24,6 +27,9 @@ var layoutCSS string
 
 //go:embed assets/*.html
 var templateFS embed.FS
+
+//go:embed assets/app.js
+var appJS string
 
 var tmpl = template.Must(template.ParseFS(templateFS, "assets/*.html"))
 
@@ -57,15 +63,36 @@ type entry struct {
 
 // csvView is the GitHub-style rendered view of a CSV/TSV file.
 type csvView struct {
-	Rows        int
-	Table       template.HTML
+	Rows  int
+	Table template.HTML
+}
+
+// fileView backs the buttons on a file's header: show the raw source, copy
+// it, download it, and (for markdown) an outline of the headings.
+type fileView struct {
+	Name        string
 	DownloadURL template.URL
+	Code        template.HTML // source with line numbers; empty if too large
+	Lines       int
+	Rendered    bool // has a rendered view to switch with the source
+	Outline     bool
+}
+
+// searchEntry is one page in the client-side search index.
+type searchEntry struct {
+	Page        string `json:"u"`
+	Title       string `json:"t"`
+	Path        string `json:"p"`
+	Description string `json:"d,omitempty"`
+	Text        string `json:"x,omitempty"`
 }
 
 type pageData struct {
 	Page        string // output path, also the route in single-file mode
 	BundleName  string
 	HomeURL     string
+	Root        string // relative URL of the output root, "" or "../.."
+	Script      template.JS
 	Title       string
 	Crumbs      []crumb
 	Meta        docMeta
@@ -76,11 +103,14 @@ type pageData struct {
 	Entries     []entry
 	Backlinks   []entry
 	CSV         *csvView
+	File        *fileView
 	Stylesheets template.CSS
 	LiveReload  bool
+
+	search searchEntry
 }
 
-type stats struct{ pages, dirs, tables, resources, broken int }
+type stats struct{ pages, dirs, tables, texts, resources, broken int }
 
 // build renders every page of the bundle. Page bodies may still contain
 // resource placeholders; see fillResources and inlineResources.
@@ -111,6 +141,18 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		data.Page = page
 		data.BundleName = ex.name
 		data.HomeURL = ex.href(page, "index.html")
+		data.Root = strings.Repeat("../", strings.Count(page, "/"))
+		data.Script = template.JS(appJS)
+		data.search.Page = page
+		data.search.Title = data.Title
+		if data.Meta.Description != "" {
+			data.search.Description = data.Meta.Description
+		}
+		var names []string
+		for _, c := range data.Crumbs[1:] {
+			names = append(names, c.Name)
+		}
+		data.search.Path = strings.Join(names, "/")
 		pages = append(pages, data)
 	}
 
@@ -126,6 +168,21 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		st.pages++
 	}
 
+	// Other text files, shown as source with line numbers.
+	for _, p := range sortedKeys(ex.b.texts) {
+		raw, err := os.ReadFile(ex.abs(p))
+		if err != nil {
+			return nil, st, err
+		}
+		page := ex.b.pageFor(p)
+		data := &pageData{Title: path.Base(p), FileName: path.Base(p)}
+		data.File = ex.fileView(p, raw, false)
+		data.search.Text = plainText(html.EscapeString(string(raw)))
+		data.Crumbs = ex.crumbs(page, path.Dir(p), path.Base(p))
+		add(page, data)
+		st.texts++
+	}
+
 	// CSV/TSV pages, like GitHub's rendered table view.
 	for _, p := range sortedKeys(ex.b.files) {
 		if !isTable(p) {
@@ -138,9 +195,8 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		page := ex.b.pageFor(p)
 		data := &pageData{Title: path.Base(p), FileName: path.Base(p)}
 		data.CSV = &csvView{Rows: countRows(p, raw), Table: template.HTML(csvTable(p, raw, true))}
-		if i, err := ex.embed(p); err == nil {
-			data.CSV.DownloadURL = template.URL(fmt.Sprintf("okfres-%d-x", i))
-		}
+		data.File = ex.fileView(p, raw, true)
+		data.search.Text = plainText(string(data.CSV.Table))
 		data.Crumbs = ex.crumbs(page, path.Dir(p), path.Base(p))
 		add(page, data)
 		st.tables++
@@ -165,6 +221,9 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 				data.FileName = path.Base(readme.path)
 				data.Body = template.HTML(readme.body) // README.html shares this directory
 				data.Sources = readme.meta.Sources
+				data.File = ex.fileView(readme.path, readme.raw, true)
+				data.File.Outline = true
+				data.search.Text = plainText(readme.body)
 			}
 		}
 		if dir == "" {
@@ -210,7 +269,31 @@ func (ex *exporter) writeSite(out string, pages []*pageData) error {
 			return err
 		}
 	}
-	return nil
+	js, err := searchJS(pages)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(out, searchFile), js, 0o644)
+}
+
+// searchFile is the search index next to the top index.html. Pages load it
+// with a <script> tag, which also works for files opened from disk.
+const searchFile = "okf-search.js"
+
+func searchIndex(pages []*pageData) []searchEntry {
+	idx := make([]searchEntry, len(pages))
+	for i, p := range pages {
+		idx[i] = p.search
+	}
+	return idx
+}
+
+func searchJS(pages []*pageData) ([]byte, error) {
+	b, err := json.Marshal(searchIndex(pages))
+	if err != nil {
+		return nil, err
+	}
+	return append(append([]byte("window.OKF_SEARCH="), b...), ";\n"...), nil
 }
 
 var resAttr = regexp.MustCompile(`(src|href)="okfres-(\d+)-x"`)
@@ -223,9 +306,11 @@ func (ex *exporter) writeSingle(out string, pages []*pageData) error {
 	data := struct {
 		BundleName  string
 		Stylesheets template.CSS
+		Script      template.JS
 		Pages       []*pageData
 		Resources   []string
-	}{ex.name, stylesheets, pages, ex.res}
+		Search      []searchEntry
+	}{ex.name, stylesheets, template.JS(appJS), pages, ex.res, searchIndex(pages)}
 	if err := tmpl.ExecuteTemplate(&sb, "single.html", data); err != nil {
 		return err
 	}
@@ -249,6 +334,9 @@ func (ex *exporter) docPage(d *doc, refs []*doc) *pageData {
 	if d.front != nil {
 		data.Front = template.HTML(renderYAML(d.front))
 	}
+	data.File = ex.fileView(d.path, d.raw, true)
+	data.File.Outline = true
+	data.search.Text = plainText(d.body)
 	sort.Slice(refs, func(i, j int) bool { return refs[i].meta.Title < refs[j].meta.Title })
 	for _, r := range refs {
 		data.Backlinks = append(data.Backlinks, entry{
@@ -296,7 +384,7 @@ func (ex *exporter) entries(dir, page string, docs map[string]*doc) []entry {
 			e.URL = template.URL(ex.href(page, d.page))
 			e.Title = d.meta.Title
 			e.Description = d.meta.Description
-		case isTable(c):
+		case isTable(c) || ex.b.texts[c]:
 			e.URL = template.URL(ex.href(page, ex.b.pageFor(c)))
 		default:
 			if i, err := ex.embed(c); err == nil {
@@ -313,6 +401,21 @@ func (ex *exporter) entries(dir, page string, docs map[string]*doc) []entry {
 		return strings.ToLower(es[i].Name) < strings.ToLower(es[j].Name)
 	})
 	return es
+}
+
+func (ex *exporter) fileView(p string, raw []byte, rendered bool) *fileView {
+	f := &fileView{Name: path.Base(p), Rendered: rendered}
+	if i, err := ex.embed(p); err == nil {
+		f.DownloadURL = template.URL(fmt.Sprintf("okfres-%d-x", i))
+	}
+	if len(raw) <= maxTextSize {
+		f.Code = template.HTML(codeView(p, raw))
+		f.Lines = bytes.Count(raw, []byte("\n"))
+		if len(raw) > 0 && raw[len(raw)-1] != '\n' {
+			f.Lines++
+		}
+	}
+	return f
 }
 
 func sortedKeys[V any](m map[string]V) []string {

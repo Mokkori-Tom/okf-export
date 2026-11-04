@@ -16,14 +16,27 @@
   </div>
 
   {{- with .CSV}}
-  <div class="box">
+  <div class="box okf-file">
     <div class="box-header">
       <svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25ZM6.5 6.5v8h7.75a.25.25 0 0 0 .25-.25V6.5Zm8-1.5V1.75a.25.25 0 0 0-.25-.25H6.5V5Zm-13 1.5v7.75c0 .138.112.25.25.25H5v-8ZM5 5V1.5H1.75a.25.25 0 0 0-.25.25V5Z"/></svg>
-      <span>{{$.FileName}}</span>
+      <span class="file-name">{{$.FileName}}</span>
       <span class="counter">{{.Rows}} {{if eq .Rows 1}}row{{else}}rows{{end}}</span>
-      {{- if .DownloadURL}}<a class="btn" href="{{.DownloadURL}}" download="{{$.FileName}}">Download</a>{{end}}
+      {{- template "actions" $.File}}
     </div>
-    <div class="markdown-body csv-view">{{.Table}}</div>
+    <div class="markdown-body csv-view rendered">{{.Table}}</div>
+    {{- template "rawview" $.File}}
+  </div>
+  {{- end}}
+
+  {{- if and .File (not .File.Rendered)}}
+  <div class="box okf-file">
+    <div class="box-header">
+      <svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"/></svg>
+      <span class="file-name">{{.FileName}}</span>
+      <span class="counter">{{.File.Lines}} {{if eq .File.Lines 1}}line{{else}}lines{{end}}</span>
+      {{- template "actions" .File}}
+    </div>
+    <div class="markdown-body raw-view">{{.File.Code}}</div>
   </div>
   {{- end}}
 
@@ -38,8 +51,7 @@
       {{- end}}
       <div class="row-main">
         {{- if .URL}}<a class="row-name" href="{{.URL}}"{{if .Download}} download="{{.Download}}"{{end}}>{{.Name}}</a>{{else}}<span class="row-name">{{.Name}}</span>{{end}}
-        {{- if .Title}}<span class="row-title">{{.Title}}</span>{{end}}
-        {{- if .Description}}<span class="row-desc">{{.Description}}</span>{{end}}
+        {{- if .Description}}<span class="row-title">{{.Description}}</span>{{end}}
       </div>
     </div>
     {{- end}}
@@ -47,12 +59,14 @@
   {{- end}}
 
   {{- if or .Body .Front}}
-  <div class="box">
+  <div class="box okf-file">
     <div class="box-header">
       <svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"/></svg>
-      <span>{{.FileName}}</span>
+      <span class="file-name">{{.FileName}}</span>
+      {{- template "actions" .File}}
     </div>
-    <article class="markdown-body">
+    <nav class="outline" aria-label="Outline" hidden></nav>
+    <article class="markdown-body rendered">
       {{- if .Front}}
       <details class="frontmatter">
         <summary>Metadata</summary>
@@ -69,6 +83,7 @@
       </ol>
       {{- end}}
     </article>
+    {{- template "rawview" .File}}
   </div>
   {{- end}}
 
@@ -88,3 +103,31 @@
   </div>
   {{- end}}
 {{end}}
+
+{{define "actions"}}
+{{- with .}}
+      <div class="file-actions">
+        {{- if and .Rendered .Code}}
+        <div class="segmented" role="group" aria-label="View">
+          <button type="button" class="btn selected" data-okf="preview" title="Show rendered file">Preview</button>
+          <button type="button" class="btn" data-okf="raw" title="Show raw">Raw</button>
+        </div>
+        {{- end}}
+        {{- if .Code}}
+        <button type="button" class="btn btn-icon" data-okf="copy" title="Copy raw file" aria-label="Copy raw file"><svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg></button>
+        {{- end}}
+        {{- if .DownloadURL}}
+        <a class="btn btn-icon" href="{{.DownloadURL}}" download="{{.Name}}" title="Download raw file" aria-label="Download raw file"><svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/><path d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg></a>
+        {{- end}}
+        {{- if .Outline}}
+        <button type="button" class="btn btn-icon" data-okf="outline" title="Outline" aria-label="Outline" aria-expanded="false"><svg class="octicon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M5.75 2.5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5ZM2 14a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM2 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg></button>
+        {{- end}}
+      </div>
+{{- end}}
+{{- end}}
+
+{{define "rawview"}}
+{{- if and . .Code}}
+    <div class="markdown-body raw-view" hidden>{{.Code}}</div>
+{{- end}}
+{{- end}}

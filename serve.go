@@ -55,10 +55,15 @@ func (s *server) rebuild() error {
 		}
 		out[p.Page] = html
 	}
+	js, err := searchJS(pages)
+	if err != nil {
+		return err
+	}
+	out[searchFile] = js
 	s.mu.Lock()
 	s.pages = out
 	s.mu.Unlock()
-	log.Printf("rendered %d pages (%d unresolved links)", len(out), st.broken)
+	log.Printf("rendered %d pages (%d unresolved links)", len(pages), st.broken)
 	return nil
 }
 
@@ -161,7 +166,11 @@ func (s *server) page(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if strings.HasSuffix(p, ".js") {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	} else {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write(body)
 }
