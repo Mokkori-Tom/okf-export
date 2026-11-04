@@ -31,6 +31,35 @@
     else fallback();
   }
 
+  // Images given only a height ({height=800px}) are capped at the page width
+  // by max-width, which would squash them on a narrow screen. Shrink the
+  // height too so they keep their shape.
+  var tall = [];
+  document.querySelectorAll(".markdown-body img[style]").forEach(function (img) {
+    if (img.style.height && !img.style.width) {
+      img.dataset.height = img.style.height;
+      tall.push(img);
+      img.addEventListener("load", function () { fitImage(img); });
+    }
+  });
+  function fitImage(img) {
+    var box = img.parentElement, cs = getComputedStyle(box);
+    var avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    if (!img.naturalWidth || !img.naturalHeight || avail <= 0) return; // not loaded, or on a hidden page
+    img.style.height = img.dataset.height;
+    var ratio = img.naturalWidth / img.naturalHeight;
+    if (img.offsetHeight * ratio > avail) img.style.height = avail / ratio + "px";
+  }
+  function fitImages() { tall.forEach(fitImage); }
+  var fitting = false;
+  window.addEventListener("resize", function () {
+    if (fitting) return;
+    fitting = true;
+    requestAnimationFrame(function () { fitting = false; fitImages(); });
+  });
+  window.addEventListener("hashchange", function () { setTimeout(fitImages); }); // single-file page switch
+  fitImages();
+
   // Copy buttons on code blocks.
   document.querySelectorAll(".markdown-body.rendered pre").forEach(function (pre) {
     var wrap = document.createElement("div");

@@ -70,6 +70,7 @@ go build -o okf-export .
   ```
 
   `width` と `height` は CSS として出力します（数字だけなら px）。`.class`・`#id`・`title` なども使えます。
+  画像の縦横比は保ちます。`height` だけを指定した画像が画面の幅に収まらないときは、高さも同じ比率で縮めます。`width` と `height` を両方指定すると、その枠の中に収めます。
 
 ## LLM に HTML を書かせる場合
 

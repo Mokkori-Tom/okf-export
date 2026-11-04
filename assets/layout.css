@@ -236,3 +236,5 @@ a.row-name:hover { color: var(--accent); }
   .site-footer { padding: 16px; }
 }
 .markdown-body .markdown-alert-title .octicon { margin-right: 8px; }
+/* {width=..} {height=..} on images: never stretch; see fitImages in app.js. */
+.markdown-body img[style] { object-fit: contain; }
