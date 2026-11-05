@@ -35,12 +35,25 @@ okf-export --version
 | `--pdf` | PDF も書き出す（Chrome か Chromium が必要。下の「PDF と EPUB」を参照） |
 | `--epub` | EPUB も書き出す |
 | `-n`, `--hostname` / `-p`, `--port` | `serve` の待ち受け（既定は `localhost` と `3000`） |
-| `--name` | 本の題名（メニューバーに出す名前。省略時はディレクトリ名） |
-| `--language` | 本の言語（`<html lang>` と EPUB。既定は `ja`） |
+| `--name` | 本の題名（メニューバーに出す名前・PDF と EPUB のファイル名。省略時は `book.toml` の `title`、なければディレクトリ名） |
+| `--language` | 本の言語（`<html lang>` と EPUB。省略時は `book.toml` の `language`、なければ `ja`） |
 | `--unsafe` | Markdown 中の生 HTML をそのまま出力する（省略時は除去） |
 | `-V`, `--version` | 版を表示する |
 
 前の書き方（`okf-export -in <bundle> -out <dir>`、`serve -in <bundle> -addr :8080`）もそのまま使えます。書き出し先がバンドルの中（既定の `book/` など）でも、次に書き出すときは okf-export の出力として読み飛ばします。
+
+### book.toml
+
+毎回フラグを付ける代わりに、バンドルのルートの `book.toml`（mdBook と同じ名前と書き方）に書いておけます。コマンドのフラグがあれば、そちらが優先です。`book.toml` 自体はページになりません。
+
+```toml
+[book]
+title = "社内マニュアル"     # 本の題名（ディレクトリ名の代わり）
+language = "ja"
+
+[build]
+build-dir = "../site"       # build の書き出し先（バンドルからの相対パス。既定は book）
+```
 
 ## 画面と操作（mdBook と同じ）
 
@@ -52,7 +65,8 @@ okf-export --version
 | 前後のページ | 画面の左右の `‹` `›`（狭い画面ではページの下）と、キーボードの `←` `→`。順番はサイドバーと同じです。 |
 | 検索 | `S` か `/`、または虫めがねで開きます。下の「検索」を参照。 |
 | アウトライン | メニューバーの右のボタン（または `O` キー）で、そのページの見出しの一覧を開きます。ページのどこにいても開け、今読んでいる節に色が付きます。見出しの無いページではボタンを出しません。 |
-| ページの道具 | 本文の右上に、元のファイルの表示（`<>`）、コピー、ダウンロード。コードブロックにはコピーボタン、見出しにはそこへのリンクが付きます。 |
+| ページの道具 | 本文の右上に、元のファイルの表示（`<>`）、コピー、ダウンロード、このページの保存。コードブロックにはコピーボタン、見出しにはそこへのリンクが付きます。 |
+| このページの保存 | 見ているページだけを、1つの HTML ファイルとして保存します。今のテーマの色と画像を含み、サイドバーとスクリプトは含みません。そのままメールなどで渡せます（ほかのページへのリンクは元のサイトを指します）。 |
 | 印刷 | 本全体を `print.html`（全ページを1枚にしたページ）から印刷します（mdBook と同じ）。1ファイルの出力では、今のページを印刷します。 |
 | スマホ | サイドバーはページの上に重なって開き、ページを選ぶと閉じます。 |
 
@@ -94,7 +108,7 @@ OKF では `index.md` はフォルダの目次で、フロントマターを持�
 
 ## PDF と EPUB
 
-- **PDF**（`--pdf`）：`print.html` を、ヘッドレスの Chrome・Chromium・Edge で PDF に印刷します。ページ間のリンクは PDF の中のリンクになります。ブラウザは環境変数 `OKF_CHROME` か、`chromium`・`google-chrome` などのコマンド、標準のインストール先から探します。見つからなければ、`print.html` をブラウザで開いて PDF に印刷してください。
+- **PDF**（`--pdf`）：`print.html` を、画面を出さないブラウザで A4 の PDF に印刷します。Chrome・Chromium・Edge があればそれを、なければ Firefox を使います。ブラウザは環境変数 `OKF_CHROME`・`OKF_FIREFOX` か、`chromium`・`google-chrome`・`firefox` などのコマンド、標準のインストール先から探します。どれも無ければ、`print.html` をブラウザで開いて PDF に印刷してください。ページ間のリンクは、Chrome で作った PDF では PDF の中のリンクになります。
 - **EPUB**（`--epub`）：EPUB 3 で書き出します。1ページが1つの XHTML、目次はサイドバーと同じ並びです。画像（PNG・JPEG・GIF・SVG・WebP）は本の中に入れます。PDF や zip などの埋め込みファイルは入れません。色は Light テーマです。
 
 ## Markdown の記法
@@ -153,9 +167,23 @@ GitHub Flavored Markdown（表・取り消し線・タスクリスト・自動�
 
 ## インストール
 
+[Releases](https://github.com/Mokkori-Tom/okf-export/releases) から、使っている OS の圧縮ファイルをダウンロードして展開し、中の `okf-export`（Windows は `okf-export.exe`）をパスの通った場所に置きます。
+
+| OS | ファイル |
+| --- | --- |
+| Windows | `okf-export_<版>_windows_amd64.zip`（ARM 版の Windows は `windows_arm64`） |
+| macOS | `okf-export_<版>_darwin_arm64.tar.gz`（Intel の Mac は `darwin_amd64`） |
+| Linux | `okf-export_<版>_linux_amd64.tar.gz`（ARM は `linux_arm64`。Termux もこれ） |
+
+`checksums.txt` に各ファイルの SHA-256 があります。Windows では PowerShell やコマンドプロンプトで `okf-export.exe build フォルダ --open` のように使います。
+
+Go がある環境なら、次でも入ります。
+
 ```
 go install github.com/Mokkori-Tom/okf-export@latest
 ```
+
+新しい版を公開するときは、`v0.2.0` のようなタグを push します。GitHub Actions（`.github/workflows/release.yml`）が各 OS 用に書き出して、Releases に載せます。
 
 ## ライセンス
 

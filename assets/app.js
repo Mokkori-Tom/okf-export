@@ -217,8 +217,36 @@
     switch (btn.dataset.okf) {
       case "raw": showRaw(box, btn.getAttribute("aria-pressed") !== "true"); break;
       case "copy": copyText(rawText(box), btn); break;
+      case "save": savePage(box); break;
     }
   });
+
+  // Save the page being read as one HTML file: its text with the site's
+  // stylesheet and the current theme, images included, without the sidebar
+  // and scripts. Links to other pages point back at the site.
+  function savePage(box) {
+    var main = box.matches("main") ? box : box.querySelector("main");
+    var clone = main.cloneNode(true), orig = main.querySelectorAll("a[href]");
+    clone.querySelectorAll("a[href]").forEach(function (a, i) {
+      var h = a.getAttribute("href");
+      if (h.charAt(0) === "#" && h.charAt(1) !== "/") return; // within the page
+      if (!/^(data|blob):/.test(h)) a.setAttribute("href", orig[i].href);
+    });
+    clone.querySelectorAll(".page-tools, .code-copy, script").forEach(function (e) { e.remove(); });
+    clone.querySelectorAll("mark.search-hit").forEach(function (m) { m.replaceWith(document.createTextNode(m.textContent)); });
+    var holder = main.closest(".okf-page"), title = holder ? holder.dataset.title : document.title;
+    var page = doc.dataset.page || "index.html";
+    var html = "<!DOCTYPE html>\n<html lang=\"" + doc.lang + "\" class=\"" + currentTheme() + "\">\n<head>\n<meta charset=\"utf-8\">\n" +
+      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>" + title.replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</title>\n" +
+      "<style>" + document.querySelector("style").textContent + "</style>\n</head>\n<body>\n<div class=\"content\"><main>" +
+      clone.innerHTML + "</main></div>\n</body>\n</html>\n";
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    a.download = page.split("/").pop();
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
 
   // Copy buttons on code blocks, and links on headings, as in mdBook.
   document.querySelectorAll(".content .rendered pre").forEach(function (pre) {

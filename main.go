@@ -68,6 +68,9 @@ func loadBundle(root string) (*bundle, error) {
 		if d.IsDir() && isOutput(p) {
 			return filepath.SkipDir // our own output, e.g. book/ from "okf-export build"
 		}
+		if rel == configFile {
+			return nil // book.toml configures the book; it isn't a page
+		}
 		parent := path.Dir(rel)
 		if parent == "." {
 			parent = ""

@@ -52,9 +52,15 @@ func main() {
 	}
 }
 
-// version is the module version go install recorded (with the commit), or
-// "(devel)" for a local build.
+// buildVersion is set by the release build (-ldflags "-X main.buildVersion=v0.1.0").
+var buildVersion string
+
+// version is the release's tag, else the module version go install recorded
+// (with the commit), or "(devel)" for a local build.
 func version() string {
+	if buildVersion != "" {
+		return "okf-export " + buildVersion
+	}
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		v := bi.Main.Version
 		for _, s := range bi.Settings {
@@ -71,15 +77,18 @@ func version() string {
 type common struct {
 	dir, name    string
 	unsafe, vers bool
+	lang         string
+	cfg          config // the bundle's book.toml
 }
 
 func newFlags(name string, c *common) *flag.FlagSet {
 	fl := flag.NewFlagSet(name, flag.ExitOnError)
 	fl.StringVar(&c.dir, "in", "", "OKF bundle directory (same as the dir argument)")
-	fl.StringVar(&c.name, "name", "", "book title in the menu bar (default: the bundle directory's name)")
+	fl.StringVar(&c.name, "name", "", "book title in the menu bar (default: book.toml's title, else the bundle directory's name)")
 	fl.BoolVar(&c.unsafe, "unsafe", false, "pass raw HTML in markdown through to the output")
 	fl.BoolVar(&c.vers, "version", false, "print the version")
 	fl.BoolVar(&c.vers, "V", false, "print the version")
+	fl.StringVar(&c.lang, "language", "", "language of the book, for <html lang> and EPUB (default: book.toml's, else ja)")
 	fl.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
 		fl.PrintDefaults()
@@ -106,6 +115,18 @@ func parse(fl *flag.FlagSet, c *common, args []string) {
 	if c.dir == "" {
 		c.dir = "."
 	}
+	var err error
+	c.cfg, err = readConfig(c.dir)
+	check(err)
+	if c.name == "" {
+		c.name = c.cfg.Title
+	}
+	if c.lang == "" {
+		c.lang = c.cfg.Language
+	}
+	if c.lang == "" {
+		c.lang = "ja"
+	}
 }
 
 func buildMain(args []string) {
@@ -120,8 +141,14 @@ func buildMain(args []string) {
 	fl.BoolVar(open, "o", false, "short for --open")
 	pdf := fl.Bool("pdf", false, "also write <name>.pdf from print.html with a headless Chrome/Chromium ($OKF_CHROME)")
 	epub := fl.Bool("epub", false, "also write <name>.epub")
-	lang := fl.String("language", "ja", "language of the book, for EPUB and <html lang>")
 	parse(fl, &c, args)
+	lang := &c.lang
+	if dest == "" && c.cfg.BuildDir != "" {
+		dest = filepath.Join(c.dir, c.cfg.BuildDir)
+		if *single {
+			dest += ".html"
+		}
+	}
 	if dest == "" {
 		dest = filepath.Join(c.dir, "book")
 		if *single {
@@ -182,12 +209,11 @@ func serveMain(args []string) {
 	addr := fl.String("addr", "", "host:port, instead of --hostname and --port")
 	open := fl.Bool("open", false, "open the preview in the browser")
 	fl.BoolVar(open, "o", false, "short for --open")
-	lang := fl.String("language", "ja", "language of the book, for <html lang>")
 	parse(fl, &c, args)
 	if *addr == "" {
 		*addr = *host + ":" + *port
 	}
-	check(serve(c.dir, bundleName(c.dir, c.name), *addr, c.unsafe, *lang, *open))
+	check(serve(c.dir, bundleName(c.dir, c.name), *addr, c.unsafe, c.lang, *open))
 }
 
 // summaryMain prints the sidebar's tree as an mdBook SUMMARY.md linking to

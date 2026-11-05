@@ -101,14 +101,19 @@ func chrome() (string, error) {
 			return p, nil
 		}
 	}
-	return "", fmt.Errorf("no Chrome or Chromium found for the PDF: install one, set OKF_CHROME to its path, or print print.html from a browser")
+	return "", fmt.Errorf("no Chrome or Chromium found")
 }
 
-// writePDF prints print.html to out with a headless Chrome/Chromium.
+// writePDF prints print.html to out with a headless Chrome/Chromium, or
+// Firefox if there is neither.
 func writePDF(b *bundle, name string, unsafe bool, lang, out string) error {
 	browser, err := chrome()
+	fox := ""
 	if err != nil {
-		return err
+		if fox, err = firefox(); err != nil {
+			return fmt.Errorf("no browser to print the PDF with: install Chromium, Chrome or Firefox " +
+				"(or set OKF_CHROME / OKF_FIREFOX to one), or open print.html from the build in a browser and print it to PDF")
+		}
 	}
 	page, err := printPage(b, name, unsafe, lang)
 	if err != nil {
@@ -129,6 +134,13 @@ func writePDF(b *bundle, name string, unsafe bool, lang, out string) error {
 	}
 	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
 		return err
+	}
+	if fox != "" {
+		pdf, err := firefoxPDF(fox, (&urlFile{src}).String())
+		if err != nil {
+			return fmt.Errorf("%s: %w", fox, err)
+		}
+		return os.WriteFile(abs, pdf, 0o644)
 	}
 	args := []string{"--headless=new", "--disable-gpu", "--no-pdf-header-footer",
 		"--user-data-dir=" + filepath.Join(tmp, "profile"),
