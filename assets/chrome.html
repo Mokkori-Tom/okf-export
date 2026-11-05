@@ -36,7 +36,9 @@
   </div>
   <h1 class="menu-title"><a href="{{.HomeURL}}">{{.BundleName}}</a></h1>
   <div class="right-buttons">
-    <button type="button" id="print-button" class="icon-button" title="Print this page"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6a1 1 0 0 1 1 1v3h1.5A1.5 1.5 0 0 1 15 6.5v5a1.5 1.5 0 0 1-1.5 1.5H12v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1H2.5A1.5 1.5 0 0 1 1 11.5v-5A1.5 1.5 0 0 1 2.5 5H4V2a1 1 0 0 1 1-1Zm.5 4h5V2.5h-5ZM5.5 10v3.5h5V10Zm-3-3.5v5H4V9.5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2h1.5v-5Z"/></svg></button>
+    <button type="button" id="outline-toggle" class="icon-button" title="Outline (o)" aria-expanded="false" aria-controls="outline" hidden><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.75 2.5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5ZM2 14a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM2 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg></button>
+    <nav id="outline" class="outline" aria-label="Outline" hidden></nav>
+    <button type="button" id="print-button" class="icon-button" title="Print this book"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6a1 1 0 0 1 1 1v3h1.5A1.5 1.5 0 0 1 15 6.5v5a1.5 1.5 0 0 1-1.5 1.5H12v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1H2.5A1.5 1.5 0 0 1 1 11.5v-5A1.5 1.5 0 0 1 2.5 5H4V2a1 1 0 0 1 1-1Zm.5 4h5V2.5h-5ZM5.5 10v3.5h5V10Zm-3-3.5v5H4V9.5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2h1.5v-5Z"/></svg></button>
   </div>
 </header>
 <div id="search-wrapper" class="search-wrapper" hidden>

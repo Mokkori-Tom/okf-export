@@ -2,44 +2,58 @@
 
 Open Knowledge Format（OKF）の Markdown 文書を、[mdBook](https://rust-lang.github.io/mdBook/) のような静的ドキュメントサイトとして書き出すツールです。Go の単一バイナリで動きます。
 
-- **ページごとの出力**：`.md` 1つにつき `.html` を1ページ出力し、フォルダ・CSV・画像などのページも作ります。
-- **1ファイルの出力（`-single`）**：全ページを1つの HTML に入れ、`#/tables/x.html` のような URL のハッシュで表示するページを切り替えます。
+- **ページごとの出力（`build`）**：`.md` 1つにつき `.html` を1ページ出力し、フォルダ・CSV・画像などのページと、全ページを1枚にした `print.html` も作ります。
+- **1ファイルの出力（`build --single`）**：全ページを1つの HTML に入れ、`#/tables/x.html` のような URL のハッシュで表示するページを切り替えます。
+- **PDF・EPUB（`build --pdf --epub`）**：本全体を PDF と EPUB 3 に書き出します。
 - **ライブプレビュー（`serve`）**：ファイルを保存すると、開いているブラウザが自動で再読み込みします。
 
 画面は mdBook と同じ構成です。左にディレクトリ構造から作った目次（サイドバー）、上にメニューバー（目次の開閉・テーマ・検索・印刷）、左右に前後のページへの矢印があります。CSS・画像・検索の索引はすべて出力に含まれ、CDN も Web フォントも使わないので、オフラインでも、ファイルを直接開いても表示できます。
 
 ## 使い方
 
+コマンドは mdBook と同じ名前です。`[dir]` はバンドルのディレクトリで、省略すると今のディレクトリです。
+
 ```
 go build -o okf-export .
 
-./okf-export -in path/to/bundle -out site              # ページごと（site/index.html を開く）
-./okf-export -in path/to/bundle -single -out site.html # 1ファイル
-./okf-export serve -in path/to/bundle                  # http://127.0.0.1:8080/
-./okf-export serve -in path/to/bundle -addr :8080      # 同じ LAN のスマホからも見る
-./okf-export summary -in path/to/bundle                # 目次を mdBook の SUMMARY.md として出力
+okf-export build [dir]                  # <dir>/book/ に書き出す（index.html を開く）
+okf-export build [dir] --open           # 書き出してブラウザで開く
+okf-export build [dir] -d site          # 書き出し先を指定
+okf-export build [dir] --single         # 1ファイル（<dir>/book.html）
+okf-export build [dir] --pdf --epub     # <dir>/book/ に <名前>.pdf と <名前>.epub も
+okf-export serve [dir] --open           # http://localhost:3000/ でプレビューしてブラウザで開く
+okf-export serve [dir] -n 0.0.0.0 -p 8080   # 同じ LAN のスマホからも見る
+okf-export summary [dir]                # 目次を mdBook の SUMMARY.md として出力
+okf-export --version
 ```
 
 | フラグ | 説明 |
 | --- | --- |
-| `-in` | OKF バンドルのディレクトリ（必須） |
-| `-out` | 出力先のディレクトリ。`-single` のときは出力ファイル（必須） |
-| `-single` | 1つの HTML ファイルに書き出す |
-| `-addr` | `serve` の待ち受けアドレス（既定は `127.0.0.1:8080`） |
-| `-name` | メニューバーに出す名前（省略時は入力ディレクトリ名） |
-| `-unsafe` | Markdown 中の生 HTML をそのまま出力する（省略時は除去） |
+| `-d`, `--dest-dir` | `build` の書き出し先（既定は `<dir>/book`。`--single` では `<dir>/book.html`） |
+| `-o`, `--open` | 書き出したもの（`serve` ではプレビュー）をブラウザで開く |
+| `--single` | 1つの HTML ファイルに書き出す |
+| `--pdf` | PDF も書き出す（Chrome か Chromium が必要。下の「PDF と EPUB」を参照） |
+| `--epub` | EPUB も書き出す |
+| `-n`, `--hostname` / `-p`, `--port` | `serve` の待ち受け（既定は `localhost` と `3000`） |
+| `--name` | 本の題名（メニューバーに出す名前。省略時はディレクトリ名） |
+| `--language` | 本の言語（`<html lang>` と EPUB。既定は `ja`） |
+| `--unsafe` | Markdown 中の生 HTML をそのまま出力する（省略時は除去） |
+| `-V`, `--version` | 版を表示する |
+
+前の書き方（`okf-export -in <bundle> -out <dir>`、`serve -in <bundle> -addr :8080`）もそのまま使えます。書き出し先がバンドルの中（既定の `book/` など）でも、次に書き出すときは okf-export の出力として読み飛ばします。
 
 ## 画面と操作（mdBook と同じ）
 
 | 部分 | 内容 |
 | --- | --- |
 | サイドバー | バンドルの目次。先頭がトップページ（ルートの `index.md`）、そのあとフォルダごとに、文書（ファイル名順）とサブフォルダ（名前順）を並べます。見出しはフロントマターの `title`（なければ本文の最初の `#` 見出し、なければファイル名）、フォルダはフォルダ名です。今のページが色付きになり、`❱` で節を折りたためます。幅は右端をドラッグして変えられ、開閉と幅は次のページでも保たれます。 |
-| メニューバー | 目次の開閉、テーマ、検索、バンドル名（トップページへのリンク）、印刷 |
+| メニューバー | 目次の開閉、テーマ、検索、バンドル名（トップページへのリンク）、アウトライン、印刷。メニューバーはスクロールしても上に残ります。 |
 | テーマ | Light・Rust・Coal・Navy・Ayu の5つ（mdBook と同じ配色）。初めは OS の設定に合わせて Light か Navy。選んだテーマは保存されます。 |
 | 前後のページ | 画面の左右の `‹` `›`（狭い画面ではページの下）と、キーボードの `←` `→`。順番はサイドバーと同じです。 |
 | 検索 | `S` か `/`、または虫めがねで開きます。下の「検索」を参照。 |
-| ページの道具 | 本文の右上に、元のファイルの表示（`<>`）、コピー、ダウンロード、見出しの一覧（アウトライン）。コードブロックにはコピーボタン、見出しにはそこへのリンクが付きます。 |
-| 印刷 | 今のページを、サイドバーなどを除いて印刷します。 |
+| アウトライン | メニューバーの右のボタン（または `O` キー）で、そのページの見出しの一覧を開きます。ページのどこにいても開け、今読んでいる節に色が付きます。見出しの無いページではボタンを出しません。 |
+| ページの道具 | 本文の右上に、元のファイルの表示（`<>`）、コピー、ダウンロード。コードブロックにはコピーボタン、見出しにはそこへのリンクが付きます。 |
+| 印刷 | 本全体を `print.html`（全ページを1枚にしたページ）から印刷します（mdBook と同じ）。1ファイルの出力では、今のページを印刷します。 |
 | スマホ | サイドバーはページの上に重なって開き、ページを選ぶと閉じます。 |
 
 ## 検索（日本語などの CJK に対応）
@@ -78,6 +92,11 @@ OKF では `index.md` はフォルダの目次で、フロントマターを持�
 - `index.md` が無いフォルダでは、同じ形の一覧を自動で作ります（§8 で認められている動き）。文書はタイトルと `description`、その他のファイルとサブフォルダは名前を、Concepts・Files・Subdirectories に分けて並べます。
 - ページのタイトルはフォルダ名（ルートはバンドル名）です。`index.md` の `title` などは使わず、仕様にないフロントマターには警告を出します。
 
+## PDF と EPUB
+
+- **PDF**（`--pdf`）：`print.html` を、ヘッドレスの Chrome・Chromium・Edge で PDF に印刷します。ページ間のリンクは PDF の中のリンクになります。ブラウザは環境変数 `OKF_CHROME` か、`chromium`・`google-chrome` などのコマンド、標準のインストール先から探します。見つからなければ、`print.html` をブラウザで開いて PDF に印刷してください。
+- **EPUB**（`--epub`）：EPUB 3 で書き出します。1ページが1つの XHTML、目次はサイドバーと同じ並びです。画像（PNG・JPEG・GIF・SVG・WebP）は本の中に入れます。PDF や zip などの埋め込みファイルは入れません。色は Light テーマです。
+
 ## Markdown の記法
 
 GitHub Flavored Markdown（表・取り消し線・タスクリスト・自動リンク）と脚注に加えて、[Crossnote](https://github.com/shd101wyy/crossnote)（Markdown Preview Enhanced）の記法のうち次のものに対応しています。
@@ -89,8 +108,8 @@ GitHub Flavored Markdown（表・取り消し線・タスクリスト・自動�
 | ハイライト | `==強調したい語==` → `<mark>` |
 | 目次 | `[TOC]` だけの段落 → そのページの見出しの一覧 |
 | 属性 | `![](a.png){height=800px}`・`{width=300 .class #id}`・見出しの末尾の `{#id}` |
-| ファイルの取り込み | 単独の行の `@import "data.csv"`・`<!-- @import "x.md" -->`・`![](data.csv)`・`![[data.csv]]` |
-| GitHub のアラート | `> [!NOTE]`・`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]` |
+| ファイルの取り込み | 単独の行の `@import "data.csv"`・`<!-- @import "x.md" -->`・`![](data.csv)`・`![改訂履歴](./history/index.md)`・`![[data.csv]]` |
+| アラート（コールアウト） | `> [!NOTE]`・`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]`（GitHub）と、`[!INFO]`・`[!SUCCESS]`・`[!QUESTION]`・`[!DANGER]`・`[!BUG]`・`[!EXAMPLE]`・`[!QUOTE]` など（Obsidian・MPE）。`> [!TIP] 見出し` で見出しを付けられ、`[!TIP]-` は閉じた状態、`[!TIP]+` は開いた状態で折りたためます。 |
 | `<img>` タグ | `<img src="a.png" width="300">`（GitHub での大きさの指定。`-unsafe` なしで効きます） |
 
 - 見出しの id は mdBook と同じく、日本語などの文字をそのまま残します（`## 設定ファイル` → `#設定ファイル`）。
@@ -106,7 +125,7 @@ GitHub Flavored Markdown（表・取り消し線・タスクリスト・自動�
 | `.md` | 本文をそのまま展開（フロントマターは除き、入れ子の取り込みも可。循環は検出してスキップ） |
 | その他 | 拡張子を言語名にしたコードブロック |
 
-コードブロックの中に書いたものは取り込みません。文の途中の `![](x.csv)` は、表のページへのリンクになります。
+コードブロックの中に書いたものは取り込みません。文の途中の `![](x.csv)`・`![](x.md)` は、そのページへのリンクになります。
 
 ## mdBook との比較
 
@@ -116,7 +135,6 @@ GitHub Flavored Markdown（表・取り消し線・タスクリスト・自動�
 
 - フォントは同梱せず、OS のフォントを使います（mdBook は Open Sans と Source Code Pro を同梱）。出力を小さく保ち、日本語のフォントを OS に任せるためです。
 - 目次は `SUMMARY.md` ではなくディレクトリ構造から作り、章番号は付けません。
-- 全ページを1つにまとめた印刷用ページ（mdBook の `print.html`）は作らず、印刷は今のページだけです。
 - コードの色分けはブラウザの JavaScript（highlight.js）ではなく、書き出すときに行います（[chroma](https://github.com/alecthomas/chroma)）。
 - OKF のための追加：フロントマターの表示、Sources と Cited by、ページの道具、フォルダ・CSV・画像などのページ、1ファイルの出力。
 

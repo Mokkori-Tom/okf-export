@@ -91,13 +91,24 @@ type exporter struct {
 	resIdx  map[string]int // bundle path -> index in res
 	resErrs map[string]bool
 	nav     *navItem // set by build
+	lang    string   // <html lang>, e.g. "ja"
 }
 
 func newExporter(b *bundle, name string, unsafe, single bool) *exporter {
-	ex := &exporter{b: b, name: name, single: single, resIdx: map[string]int{}, resErrs: map[string]bool{}}
+	ex := &exporter{b: b, name: name, single: single, lang: "ja", resIdx: map[string]int{}, resErrs: map[string]bool{}}
+	ex.setMarkdown(unsafe, false)
+	return ex
+}
+
+// setMarkdown sets up the markdown converter; xhtml closes empty elements
+// (<br />) for EPUB, whose pages must be XML.
+func (ex *exporter) setMarkdown(unsafe, xhtml bool) {
 	var ropts []goldmark.Option
 	if unsafe {
 		ropts = append(ropts, goldmark.WithRendererOptions(gmhtml.WithUnsafe()))
+	}
+	if xhtml {
+		ropts = append(ropts, goldmark.WithRendererOptions(gmhtml.WithXHTML()))
 	}
 	ex.md = goldmark.New(append(ropts,
 		goldmark.WithExtensions(
@@ -130,7 +141,6 @@ func newExporter(b *bundle, name string, unsafe, single bool) *exporter {
 			util.Prioritized(tocRenderer{}, 500),
 		)),
 	)...)
-	return ex
 }
 
 func (ex *exporter) parse(p string) (*doc, error) {
@@ -198,9 +208,9 @@ func (t *linkRewriter) Transform(node *ast.Document, reader text.Reader, pc pars
 				}
 			}
 		case *ast.Image:
-			if p, _, ok := t.ex.resolveLocal(d.path, string(n.Destination)); ok && isTable(p) && t.ex.b.files[p] {
-				// A table can't be an inline image; standalone ones were
-				// already expanded by preprocess, so link to the table page.
+			if p, _, ok := t.ex.resolveLocal(d.path, string(n.Destination)); ok && !isImage(p) && t.ex.b.files[p] {
+				// A table or document can't be an inline image; ones alone on
+				// a line were already imported by preprocess, so link to its page.
 				tableImages = append(tableImages, n)
 				return ast.WalkSkipChildren, nil
 			}

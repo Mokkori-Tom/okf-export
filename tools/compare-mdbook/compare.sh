@@ -28,7 +28,8 @@ name=$(basename "$(cd "$bundle" && pwd)")
 
 # mdBook source: the bundle without frontmatter (mdBook would print it), and
 # the sidebar okf-export builds, as SUMMARY.md.
-(cd "$bundle" && find . -path '*/.*' -prune -o -type f -print) | while read -r f; do
+# Skip okf-export's own output in the bundle (book/ from "okf-export build").
+(cd "$bundle" && find . -path '*/.*' -prune -o -type d -exec test -e '{}/okf-toc.js' \; -prune -o -type f -print) | while read -r f; do
 	mkdir -p "$out/book/src/$(dirname "$f")"
 	case $f in
 	*.md) awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {fm=0; next} !fm' "$bundle/$f" >"$out/book/src/$f" ;;

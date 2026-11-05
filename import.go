@@ -41,11 +41,13 @@ func isImage(p string) bool {
 // must stand alone on its line:
 //
 //	@import "file"          <!-- @import "file" -->
-//	![](file.csv)           ![[ file ]]
+//	![](file.csv)           ![](file.md)            ![[ file ]]
 var (
-	importLine   = regexp.MustCompile(`^\s{0,3}@import\s+"([^"]+)"(?:\s*(\{[^}]*\}))?\s*$`)
-	importHTML   = regexp.MustCompile(`^\s{0,3}<!--\s*@import\s+"([^"]+)"(?:\s*(\{[^}]*\}))?\s*-->\s*$`)
-	imageCSVLine = regexp.MustCompile(`(?i)^\s{0,3}!\[[^\]]*\]\(\s*<?([^)\s>]+\.(?:csv|tsv))>?(?:\s+"[^"]*")?\s*\)\s*$`)
+	importLine = regexp.MustCompile(`^\s{0,3}@import\s+"([^"]+)"(?:\s*(\{[^}]*\}))?\s*$`)
+	importHTML = regexp.MustCompile(`^\s{0,3}<!--\s*@import\s+"([^"]+)"(?:\s*(\{[^}]*\}))?\s*-->\s*$`)
+	// ![alt](x.csv) and ![alt](x.md) alone on a line import the file, as in
+	// Markdown Preview Enhanced; ![alt](image.png) stays an image.
+	imageCSVLine = regexp.MustCompile(`(?i)^\s{0,3}!\[[^\]]*\]\(\s*<?([^)\s>]+\.(?:csv|tsv|md))>?(?:\s+"[^"]*")?\s*\)\s*$`)
 	wikiEmbed    = regexp.MustCompile(`^\s{0,3}!\[\[\s*([^\]|]+?)\s*(?:\|[^\]]*)?\]\](\{[^}]*\})?\s*$`)
 	fenceOpen    = regexp.MustCompile("^\\s{0,3}(`{3,}|~{3,})")
 	blockMarker  = regexp.MustCompile(`<p>OKFBLOCK-(\d+)-X</p>`)

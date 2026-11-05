@@ -134,7 +134,11 @@
   // ---- Menu bar, print, keys ----
   var menuBar = document.getElementById("menu-bar");
   window.addEventListener("scroll", function () { menuBar.classList.toggle("bordered", window.scrollY > 0); }, { passive: true });
-  document.getElementById("print-button").addEventListener("click", function () { window.print(); });
+  // Print the whole book from print.html, as mdBook does; the single file
+  // prints the page being shown.
+  document.getElementById("print-button").addEventListener("click", function () {
+    if (single) window.print(); else location.href = root + "print.html?print";
+  });
 
   document.addEventListener("keydown", function (ev) {
     if (ev.altKey || ev.ctrlKey || ev.metaKey || typing(ev.target)) return;
@@ -145,16 +149,18 @@
     } else if (ev.key === "/" || ev.key === "s" || ev.key === "S") {
       ev.preventDefault();
       showSearch(true);
+    } else if ((ev.key === "o" || ev.key === "O") && !outlineToggle.hidden) {
+      ev.preventDefault();
+      showOutline(outline.hidden);
     } else if (ev.key === "Escape") {
       showThemes(false);
+      showOutline(false);
       unmark();
     }
   });
   document.addEventListener("click", function (ev) {
     if (!themeList.hidden && !ev.target.closest("#theme-list, #theme-toggle")) showThemes(false);
-    document.querySelectorAll(".outline:not([hidden])").forEach(function (o) {
-      if (!ev.target.closest(".page-tools")) closeOutline(o.closest(".page-tools"));
-    });
+    if (!outline.hidden && !ev.target.closest("#outline, #outline-toggle")) showOutline(false);
   });
 
   // ---- Page tools: source view, copy, outline ----
@@ -173,34 +179,37 @@
     var b = box.querySelector("[data-okf=raw]");
     if (b) { b.classList.toggle("selected", raw); b.setAttribute("aria-pressed", String(raw)); b.title = raw ? "Show the page" : "Show the source"; }
   }
-  function closeOutline(tools) {
-    var o = tools.querySelector(".outline"), b = tools.querySelector("[data-okf=outline]");
-    if (o) o.hidden = true;
-    if (b) b.setAttribute("aria-expanded", "false");
+  // The outline of the page's headings opens from the menu bar, which stays
+  // on screen, so it can be used anywhere on the page. The heading being
+  // read is marked.
+  var outlineToggle = document.getElementById("outline-toggle");
+  var outline = document.getElementById("outline");
+  function headings() {
+    return scope().querySelectorAll(".rendered :is(h1, h2, h3, h4, h5, h6)[id], .okf-header h1[id]");
   }
-  function toggleOutline(box, btn) {
-    var tools = btn.closest(".page-tools"), o = tools.querySelector(".outline");
-    if (!o.hidden) { closeOutline(tools); return; }
-    showRaw(box, false);
-    o.textContent = "";
-    var hs = box.querySelectorAll(".rendered :is(h1, h2, h3, h4, h5, h6)[id]");
-    if (!hs.length) {
-      var none = document.createElement("span");
-      none.className = "empty";
-      none.textContent = "No headings";
-      o.appendChild(none);
-    }
+  function updateOutlineButton() { outlineToggle.hidden = !headings().length; showOutline(false); }
+  function showOutline(show) {
+    outline.hidden = !show;
+    outlineToggle.setAttribute("aria-expanded", String(show));
+    if (!show) return;
+    showRaw(scope(), false);
+    outline.textContent = "";
+    var hs = Array.prototype.slice.call(headings()), current = null;
+    hs.forEach(function (h) {
+      if (h.getBoundingClientRect().top <= menuBar.offsetHeight + 20) current = h;
+    });
     hs.forEach(function (h) {
       var a = document.createElement("a");
       a.href = "#" + h.id;
       a.textContent = h.textContent;
-      a.className = "outline-" + h.tagName.toLowerCase();
-      a.addEventListener("click", function () { closeOutline(tools); });
-      o.appendChild(a);
+      a.className = "outline-" + h.tagName.toLowerCase() + (h === (current || hs[0]) ? " current" : "");
+      a.addEventListener("click", function () { showOutline(false); });
+      outline.appendChild(a);
     });
-    o.hidden = false;
-    btn.setAttribute("aria-expanded", "true");
+    var cur = outline.querySelector(".current");
+    if (cur) outline.scrollTop = cur.offsetTop - outline.clientHeight / 3;
   }
+  outlineToggle.addEventListener("click", function () { showOutline(outline.hidden); });
   document.addEventListener("click", function (ev) {
     var btn = ev.target.closest("[data-okf]");
     if (!btn) return;
@@ -208,7 +217,6 @@
     switch (btn.dataset.okf) {
       case "raw": showRaw(box, btn.getAttribute("aria-pressed") !== "true"); break;
       case "copy": copyText(rawText(box), btn); break;
-      case "outline": toggleOutline(box, btn); break;
     }
   });
 
@@ -458,10 +466,12 @@
   if (!single) window.addEventListener("hashchange", highlight);
   document.addEventListener("okf:page", function () {
     markActive(true);
+    updateOutlineButton();
     showPDFs();
     tall.forEach(fitImage);
     highlight();
   });
+  updateOutlineButton();
   showPDFs();
   tall.forEach(fitImage);
   highlight();

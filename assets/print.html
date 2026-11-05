@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}" class="light print-book">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.BundleName}}</title>
+<style>{{.Stylesheets}}</style>
+</head>
+<body>
+<div class="content">
+  <main>
+  {{- range .Pages}}
+  <section class="print-page" id="/{{.Page}}">
+{{template "content" .}}
+  </section>
+  {{- end}}
+  </main>
+</div>
+<script>
+// Opened from the print button ("print.html?print"): print once loaded, as mdBook does.
+if (/[?&]print\b/.test(location.search)) addEventListener("load", function () { setTimeout(function () { window.print(); }, 300); });
+</script>
+</body>
+</html>

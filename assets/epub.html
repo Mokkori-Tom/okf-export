@@ -1,0 +1,52 @@
+{{define "epub"}}<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="{{.Lang}}" xml:lang="{{.Lang}}" class="light">
+<head>
+<meta charset="UTF-8" />
+<title>{{.Title}}</title>
+<link rel="stylesheet" type="text/css" href="{{.Root}}style.css" />
+</head>
+<body>
+<div class="content"><main>
+<header class="okf-header">
+{{- if .TitleHTML}}{{.TitleHTML}}{{else}}<h1 class="okf-title">{{.Title}}</h1>{{end}}
+{{- if .Meta.Description}}<p class="okf-description">{{.Meta.Description}}</p>{{end}}
+{{- if or .Meta.Type .Meta.Status .Meta.Tags .OKFVersion}}
+<div class="okf-labels">
+  {{- if .OKFVersion}}<span class="okf-label">OKF {{.OKFVersion}}</span>{{end}}
+  {{- if .Meta.Type}}<span class="okf-label">{{.Meta.Type}}</span>{{end}}
+  {{- if .Meta.Status}}<span class="okf-label">{{.Meta.Status}}</span>{{end}}
+  {{- range .Meta.Tags}}<span class="okf-label tag">{{.}}</span>{{end}}
+</div>
+{{- end}}
+{{- if .Front}}<div class="okf-meta">{{.Front}}</div>{{end}}
+{{- with .CSV}}<p class="file-info">{{.Rows}} {{if eq .Rows 1}}row{{else}}rows{{end}}</p>{{end}}
+</header>
+{{- with .CSV}}{{.Table}}{{end}}
+{{- with .Media}}
+{{- if eq .Kind "image"}}<div class="media-view image-view"><img src="{{.Src}}" alt="{{$.FileName}}" /></div>
+{{- else}}<p class="muted">{{if eq .Kind "pdf"}}PDF{{else if eq .Kind "large"}}This file is too big to display.{{else}}Binary file not shown.{{end}} ({{.Size}})</p>{{end}}
+{{- end}}
+{{- if and .File (not .File.Rendered) (not .Media)}}<div class="raw-view">{{.File.Code}}</div>{{end}}
+{{.Body}}
+{{- if .Sources}}
+<h2 id="sources">Sources</h2>
+<ol class="sources">
+  {{- range .Sources}}
+  <li id="source-{{.ID}}">{{if .Resource}}<a href="{{.Resource}}">{{if .Title}}{{.Title}}{{else}}{{.Resource}}{{end}}</a>{{else}}{{.Title}}{{end}}{{if .ID}} <code>{{.ID}}</code>{{end}}</li>
+  {{- end}}
+</ol>
+{{- end}}
+{{- if .Backlinks}}
+<section class="backlinks">
+  <h2>Cited by</h2>
+  <ul>
+    {{- range .Backlinks}}
+    <li><a href="{{.URL}}">{{.Title}}</a><span class="where">{{.Name}}</span>{{if .Description}}<span class="desc">{{.Description}}</span>{{end}}</li>
+    {{- end}}
+  </ul>
+</section>
+{{- end}}
+</main></div>
+</body>
+</html>
+{{end}}

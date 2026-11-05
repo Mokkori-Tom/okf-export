@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -16,16 +17,16 @@ import (
 // server renders the bundle into memory and re-renders it whenever a file
 // changes, telling open browsers to reload over Server-Sent Events.
 type server struct {
-	root, name string
-	unsafe     bool
+	root, name, lang string
+	unsafe           bool
 
 	mu    sync.RWMutex
 	pages map[string][]byte
 	subs  map[chan struct{}]bool
 }
 
-func serve(root, name, addr string, unsafe bool) error {
-	s := &server{root: root, name: name, unsafe: unsafe, subs: map[chan struct{}]bool{}}
+func serve(root, name, addr string, unsafe bool, lang string, open bool) error {
+	s := &server{root: root, name: name, lang: lang, unsafe: unsafe, subs: map[chan struct{}]bool{}}
 	if err := s.rebuild(); err != nil {
 		return err
 	}
@@ -33,8 +34,16 @@ func serve(root, name, addr string, unsafe bool) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/__okf/events", s.events)
 	mux.HandleFunc("/", s.page)
-	log.Printf("serving %s on http://%s/ (Ctrl-C to stop)", root, displayAddr(addr))
-	return http.ListenAndServe(addr, mux)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	url := "http://" + displayAddr(ln.Addr().String()) + "/"
+	log.Printf("serving %s on %s (Ctrl-C to stop)", root, url)
+	if open {
+		openBrowser(url)
+	}
+	return http.Serve(ln, mux)
 }
 
 func (s *server) rebuild() error {
@@ -43,6 +52,7 @@ func (s *server) rebuild() error {
 		return err
 	}
 	ex := newExporter(b, s.name, s.unsafe, false)
+	ex.lang = s.lang
 	pages, st, err := ex.build()
 	if err != nil {
 		return err
@@ -61,6 +71,9 @@ func (s *server) rebuild() error {
 	}
 	out[searchFile] = js
 	out[tocFile] = ex.tocJS()
+	if out[printFile], err = printPage(b, s.name, s.unsafe, s.lang); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	s.pages = out
 	s.mu.Unlock()
@@ -104,6 +117,9 @@ func fingerprint(root string) uint64 {
 				return filepath.SkipDir
 			}
 			return nil
+		}
+		if p != root && d.IsDir() && isOutput(p) {
+			return filepath.SkipDir
 		}
 		info, err := d.Info()
 		if err != nil {
@@ -176,9 +192,14 @@ func (s *server) page(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(body)
 }
 
+// displayAddr turns a listening address into one to browse to.
 func displayAddr(addr string) string {
-	if strings.HasPrefix(addr, ":") {
-		return "localhost" + addr
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
 	}
-	return addr
+	if host == "" || host == "::" || host == "0.0.0.0" || host == "127.0.0.1" || host == "::1" {
+		host = "localhost"
+	}
+	return net.JoinHostPort(host, port)
 }

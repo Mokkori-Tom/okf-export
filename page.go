@@ -84,14 +84,13 @@ type csvView struct {
 }
 
 // fileView backs the buttons on a file's header: show the raw source, copy
-// it, download it, and (for markdown) an outline of the headings.
+// it and download it.
 type fileView struct {
 	Name        string
 	DownloadURL template.URL
 	Code        template.HTML // source with line numbers; empty if too large
 	Lines       int
 	Rendered    bool // has a rendered view to switch with the source
-	Outline     bool
 }
 
 // mediaView is the page of a file that is neither markdown, a table nor
@@ -124,6 +123,7 @@ type pageData struct {
 	Page        string // output path, also the route in single-file mode
 	BundleName  string
 	HomeURL     string
+	Lang        string
 	Prev, Next  *navLink
 	Themes      any
 	TitleHTML   template.HTML // the body's opening <h1>, moved above the metadata
@@ -187,6 +187,7 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		data.Root = strings.Repeat("../", strings.Count(page, "/"))
 		data.Script = template.JS(appJS)
 		data.Themes = themes
+		data.Lang = ex.lang
 		var names []string
 		for _, c := range data.Crumbs[1:] {
 			names = append(names, c.Name)
@@ -280,7 +281,6 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 			data.Body = template.HTML(idx.body)
 			data.Sources = idx.meta.Sources
 			data.File = ex.fileView(idx.path, idx.raw, true)
-			data.File.Outline = true
 			data.Backlinks = ex.backlinks(idx, backlinks[idx.path])
 			if dir == "" {
 				data.OKFVersion = frontValue(idx.front, "okf_version")
@@ -396,6 +396,7 @@ func (ex *exporter) writeSingle(out string, pages []*pageData) error {
 	var sb strings.Builder
 	data := struct {
 		BundleName  string
+		Lang        string
 		HomeURL     string
 		Stylesheets template.CSS
 		Script      template.JS
@@ -404,7 +405,7 @@ func (ex *exporter) writeSingle(out string, pages []*pageData) error {
 		Pages       []*pageData
 		Resources   []string
 		Search      []searchEntry
-	}{ex.name, "#/index.html", stylesheets, template.JS(appJS), themes, template.HTML(ex.nav.tocHTML()), pages, ex.res, searchIndex(pages)}
+	}{ex.name, ex.lang, "#/index.html", stylesheets, template.JS(appJS), themes, template.HTML(ex.nav.tocHTML()), pages, ex.res, searchIndex(pages)}
 	if err := tmpl.ExecuteTemplate(&sb, "single.html", data); err != nil {
 		return err
 	}
@@ -429,7 +430,6 @@ func (ex *exporter) docPage(d *doc, refs []*doc) *pageData {
 		data.Front = template.HTML(renderYAML(rest))
 	}
 	data.File = ex.fileView(d.path, d.raw, true)
-	data.File.Outline = true
 	data.Backlinks = ex.backlinks(d, refs)
 	return data
 }
