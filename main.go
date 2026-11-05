@@ -20,6 +20,7 @@ const usage = `usage:
   okf-export -in <bundle> -out <dir>             one HTML file per page
   okf-export -in <bundle> -single -out <file>    everything in one HTML file
   okf-export serve -in <bundle> [-addr host:port] live preview
+  okf-export summary -in <bundle>                print the sidebar as an mdBook SUMMARY.md
 
 flags:
 `
@@ -27,6 +28,10 @@ flags:
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "serve" {
 		serveMain(os.Args[2:])
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "summary" {
+		summaryMain(os.Args[2:])
 		return
 	}
 	fl := flag.NewFlagSet("okf-export", flag.ExitOnError)
@@ -78,6 +83,40 @@ func serveMain(args []string) {
 		os.Exit(2)
 	}
 	check(serve(*in, bundleName(*in, *name), *addr, *unsafe))
+}
+
+// summaryMain prints the sidebar's tree as an mdBook SUMMARY.md linking to
+// the markdown sources, so the bundle can be built with mdBook to compare.
+func summaryMain(args []string) {
+	fl := flag.NewFlagSet("okf-export summary", flag.ExitOnError)
+	in := fl.String("in", "", "OKF bundle directory (required)")
+	name := fl.String("name", "", "bundle name (default: input directory name)")
+	fl.Usage = func() {
+		fmt.Fprint(os.Stderr, usage)
+		fl.PrintDefaults()
+	}
+	_ = fl.Parse(args)
+	if *in == "" {
+		fl.Usage()
+		os.Exit(2)
+	}
+	b, err := loadBundle(*in)
+	check(err)
+	ex := newExporter(b, bundleName(*in, *name), false, false)
+	_, _, err = ex.build()
+	check(err)
+	// Pages map back to sources: x.html is x.md, dir/index.html dir/index.md
+	// (an mdBook chapter needs a file; a folder without one gets a blank page).
+	src := map[string]string{}
+	for _, d := range b.docs {
+		src[b.pageFor(d)] = d
+	}
+	ex.nav.writeSummary(os.Stdout, func(page string) string {
+		if s, ok := src[page]; ok {
+			return s
+		}
+		return "" // mdBook draft chapter
+	})
 }
 
 func bundleName(in, name string) string {

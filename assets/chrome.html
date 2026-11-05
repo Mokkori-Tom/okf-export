@@ -1,0 +1,51 @@
+{{define "head"}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<script>
+// Theme and sidebar state before the first paint, as mdBook does.
+(function () {
+  var d = document.documentElement, t, s, w;
+  try { t = localStorage.getItem("okf-theme"); s = localStorage.getItem("okf-sidebar"); w = localStorage.getItem("okf-sidebar-width"); } catch (e) {}
+  if (!/^(light|rust|coal|navy|ayu)$/.test(t || "")) t = matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+  if (window.innerWidth < 1080) s = "hidden";
+  d.className = t + (s === "hidden" ? " sidebar-hidden" : " sidebar-visible");
+  if (w) d.style.setProperty("--sidebar-width", w);
+})();
+</script>
+{{end}}
+
+{{define "sidebar"}}
+<nav id="sidebar" class="sidebar" aria-label="Table of contents">
+  <div class="sidebar-scrollbox" id="toc">{{.}}</div>
+  <div class="sidebar-resize-handle" aria-hidden="true"></div>
+</nav>
+{{end}}
+
+{{define "menubar"}}
+<header id="menu-bar" class="menu-bar">
+  <div class="left-buttons">
+    <button type="button" id="sidebar-toggle" class="icon-button" title="Toggle table of contents" aria-controls="sidebar"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75Zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75ZM1.75 12h12.5a.75.75 0 0 1 0 1.5H1.75a.75.75 0 0 1 0-1.5Z"/></svg></button>
+    <button type="button" id="theme-toggle" class="icon-button" title="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.134 1.535c.7-.509 1.416-.942 2.076-1.155.649-.21 1.463-.267 2.069.34.603.601.568 1.411.368 2.07-.202.668-.624 1.39-1.125 2.096-1.011 1.424-2.496 2.987-3.775 4.249-1.098 1.084-2.132 1.839-3.04 2.3a3.744 3.744 0 0 1-1.055 3.217c-.431.431-1.065.651-1.657.81-.614.164-1.294.284-1.914.377-.627.093-1.2.163-1.618.21-.31.034-.6.037-.837-.067a.75.75 0 0 1-.405-.413c-.093-.241-.06-.521-.027-.808.048-.418.118-.99.211-1.618.093-.62.213-1.3.377-1.914.159-.592.379-1.226.81-1.657a3.747 3.747 0 0 1 3.216-1.055c.46-.908 1.215-1.942 2.3-3.04 1.262-1.279 2.825-2.764 4.25-3.775Zm-3.73 9.36.016-.015.016-.016c-.33.13-.657.191-.959.165Zm.968-1.212c.648-.327 1.442-.886 2.343-1.776 1.258-1.24 2.676-2.742 3.616-4.063.476-.67.79-1.234.924-1.674.127-.42.075-.624-.01-.71-.085-.083-.29-.135-.711-.009-.44.136-1.003.449-1.674.926-1.32.94-2.82 2.36-4.063 3.616-.89.9-1.449 1.695-1.776 2.343l.65.276c.234.1.418.285.518.517ZM5.47 9.03a2.25 2.25 0 0 0-1.89.678c-.21.21-.374.58-.513 1.098-.135.501-.24 1.087-.331 1.69-.068.453-.118.884-.157 1.226l1.226-.157c.603-.09 1.19-.196 1.69-.33.518-.14.888-.304 1.098-.514a2.25 2.25 0 0 0 .68-1.89Z"/></svg></button>
+    <ul id="theme-list" class="theme-popup" hidden>
+      {{- range .Themes}}
+      <li><button type="button" class="theme" data-theme="{{.ID}}">{{.Name}}</button></li>
+      {{- end}}
+    </ul>
+    <button type="button" id="search-toggle" class="icon-button" title="Search (/ or s)" aria-expanded="false" aria-controls="search-wrapper"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/></svg></button>
+  </div>
+  <h1 class="menu-title"><a href="{{.HomeURL}}">{{.BundleName}}</a></h1>
+  <div class="right-buttons">
+    <button type="button" id="print-button" class="icon-button" title="Print this page"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6a1 1 0 0 1 1 1v3h1.5A1.5 1.5 0 0 1 15 6.5v5a1.5 1.5 0 0 1-1.5 1.5H12v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1H2.5A1.5 1.5 0 0 1 1 11.5v-5A1.5 1.5 0 0 1 2.5 5H4V2a1 1 0 0 1 1-1Zm.5 4h5V2.5h-5ZM5.5 10v3.5h5V10Zm-3-3.5v5H4V9.5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2h1.5v-5Z"/></svg></button>
+  </div>
+</header>
+<div id="search-wrapper" class="search-wrapper" hidden>
+  <form class="searchbar-outer" role="search" onsubmit="return false">
+    <input type="search" id="searchbar" placeholder="Search this book …" aria-label="Search" autocomplete="off">
+  </form>
+  <div id="searchresults-outer" class="searchresults-outer" hidden>
+    <div id="searchresults-header" class="searchresults-header"></div>
+    <ul id="searchresults"></ul>
+  </div>
+</div>
+{{end}}

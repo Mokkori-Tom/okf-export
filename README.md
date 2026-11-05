@@ -1,22 +1,23 @@
 # okf-export
 
-Open Knowledge Format（OKF）のバンドルを、GitHub 風の見た目の静的サイトとして書き出すツールです。
+Open Knowledge Format（OKF）の Markdown 文書を、[mdBook](https://rust-lang.github.io/mdBook/) のような静的ドキュメントサイトとして書き出すツールです。Go の単一バイナリで動きます。
 
-- **ページごとの出力**：`.md` 1つにつき `.html` を1ページ出力し、CSV/TSV のページとフォルダごとの一覧ページも作ります。
+- **ページごとの出力**：`.md` 1つにつき `.html` を1ページ出力し、フォルダ・CSV・画像などのページも作ります。
 - **1ファイルの出力（`-single`）**：全ページを1つの HTML に入れ、`#/tables/x.html` のような URL のハッシュで表示するページを切り替えます。
 - **ライブプレビュー（`serve`）**：ファイルを保存すると、開いているブラウザが自動で再読み込みします。
 
-どの方式でも CSS、画像、ダウンロード用のファイルを埋め込みます（ページごとの出力では、検索用の `okf-search.js` も一緒に書き出します）。CDN もフォントも使わないので、オフラインでも表示できます。ライト／ダークは OS の設定に合わせて切り替わり、スマホ幅にも対応しています。
+画面は mdBook と同じ構成です。左にディレクトリ構造から作った目次（サイドバー）、上にメニューバー（目次の開閉・テーマ・検索・印刷）、左右に前後のページへの矢印があります。CSS・画像・検索の索引はすべて出力に含まれ、CDN も Web フォントも使わないので、オフラインでも、ファイルを直接開いても表示できます。
 
 ## 使い方
 
 ```
 go build -o okf-export .
 
-./okf-export -in path/to/bundle -out site              # ページごと
+./okf-export -in path/to/bundle -out site              # ページごと（site/index.html を開く）
 ./okf-export -in path/to/bundle -single -out site.html # 1ファイル
 ./okf-export serve -in path/to/bundle                  # http://127.0.0.1:8080/
 ./okf-export serve -in path/to/bundle -addr :8080      # 同じ LAN のスマホからも見る
+./okf-export summary -in path/to/bundle                # 目次を mdBook の SUMMARY.md として出力
 ```
 
 | フラグ | 説明 |
@@ -25,90 +26,78 @@ go build -o okf-export .
 | `-out` | 出力先のディレクトリ。`-single` のときは出力ファイル（必須） |
 | `-single` | 1つの HTML ファイルに書き出す |
 | `-addr` | `serve` の待ち受けアドレス（既定は `127.0.0.1:8080`） |
-| `-name` | ヘッダーに出す名前（省略時は入力ディレクトリ名） |
+| `-name` | メニューバーに出す名前（省略時は入力ディレクトリ名） |
 | `-unsafe` | Markdown 中の生 HTML をそのまま出力する（省略時は除去） |
 
-## 変換の内容
+## 画面と操作（mdBook と同じ）
+
+| 部分 | 内容 |
+| --- | --- |
+| サイドバー | バンドルの目次。先頭がトップページ（ルートの `index.md`）、そのあとフォルダごとに、文書（ファイル名順）とサブフォルダ（名前順）を並べます。見出しはフロントマターの `title`（なければ本文の最初の `#` 見出し、なければファイル名）、フォルダはフォルダ名です。今のページが色付きになり、`❱` で節を折りたためます。幅は右端をドラッグして変えられ、開閉と幅は次のページでも保たれます。 |
+| メニューバー | 目次の開閉、テーマ、検索、バンドル名（トップページへのリンク）、印刷 |
+| テーマ | Light・Rust・Coal・Navy・Ayu の5つ（mdBook と同じ配色）。初めは OS の設定に合わせて Light か Navy。選んだテーマは保存されます。 |
+| 前後のページ | 画面の左右の `‹` `›`（狭い画面ではページの下）と、キーボードの `←` `→`。順番はサイドバーと同じです。 |
+| 検索 | `S` か `/`、または虫めがねで開きます。下の「検索」を参照。 |
+| ページの道具 | 本文の右上に、元のファイルの表示（`<>`）、コピー、ダウンロード、見出しの一覧（アウトライン）。コードブロックにはコピーボタン、見出しにはそこへのリンクが付きます。 |
+| 印刷 | 今のページを、サイドバーなどを除いて印刷します。 |
+| スマホ | サイドバーはページの上に重なって開き、ページを選ぶと閉じます。 |
+
+## 検索（日本語などの CJK に対応）
+
+全ページの本文を見出しごとに区切った索引を出力に含め、ブラウザの中で検索します。
+
+- 部分一致で探すので、日本語・中国語・韓国語も単語に区切らずに検索できます。空白で区切ると AND 検索です。
+- 全角と半角（`ＡＢＣ` と `ABC`、`ｶﾅ` と `カナ`）、大文字と小文字を区別しません（Unicode の NFKC 正規化）。
+- 結果は「ページのタイトル » 見出し」とその前後の文で表示し、見出しの位置へ移動します。タイトルや見出しに含むものが上に来ます。
+- 結果から開いたページでは、探した語に色が付きます（`Esc` で消えます）。
+- `↓` `↑` で結果を選び、`Enter` で開きます。
+- 索引に入れるのは1ページにつき本文の 100,000 バイトまでです。
+
+## OKF 文書の表示
 
 | 入力 | 出力 |
 | --- | --- |
 | `a/b.md` | `a/b.html` |
 | フォルダ・`a/index.md` | `a/index.html`（そのフォルダの `index.md` を表示。なければ同じ形の一覧を自動で作る） |
-| `a/x.csv`・`a/x.tsv` | `a/x.csv.html`（GitHub と同じく行番号付きの表） |
-| その他のテキストファイル（`.txt`・`.yaml`・`.go` など 1MB まで） | `a/x.txt.html`（行番号と色分け付きで表示） |
-| `/x.md`・`../x.md`・`x/`・`x.csv` へのリンク | 出力ページへのリンク |
-| 画像 `a/x.png` | `a/x.png.html`（GitHub と同じく画像を表示。ファイルサイズ・縦横のピクセル数・ダウンロードボタン付き） |
-| PDF `a/x.pdf` | `a/x.pdf.html`（ブラウザの PDF ビューアでページ内に表示。表示できないブラウザ（スマホなど）ではダウンロードボタン） |
-| その他のファイル（zip・docx など、1MB を超えるテキスト） | `a/x.zip.html`（「表示できません」とダウンロードボタン） |
-| ファイルへのリンク | クリックすると上のページが開く（いきなりダウンロードしない）。ダウンロードはページのボタンから |
-| 本文の画像 | data URI で埋め込み。クリックするとその画像のページが開く（外部の画像は元の URL を新しいタブで開く） |
-| ルートの `index.md` の `okf_version` | トップページのタイトルの下に `OKF 0.2` のようなラベル |
-| フロントマター | タイトル、説明、type、status、tags を見出し部分に、sources をページ末尾の Sources に表示。それ以外の項目（resource など）は「Metadata」に表として表示（無ければ Metadata 欄は出さない） |
+| フロントマター | ページの上に、`title`（本文が同じ `#` 見出しで始まるときは省略）、`description`、`type`・`status`・`tags` のラベル。`sources` は本文の後の Sources に。それ以外の項目（`resource` など）は折りたたんだ「Metadata」の表に。`description` は `<meta name="description">` にも入ります。 |
 | `[^id]`（`sources` の id） | ページ末尾の Sources への番号付きリンク |
-| 被リンク | ページ末尾に「Cited by」として表示（`okf backlinks` と同じく、`index.md`・`log.md` からのリンクは数えない） |
+| 被リンク | ページ末尾の「Cited by」（`okf backlinks` と同じく、`index.md`・`log.md` からのリンクは数えない） |
+| ルートの `index.md` の `okf_version` | トップページに `OKF 0.2` のようなラベル |
+| `a/x.csv`・`a/x.tsv` | `a/x.csv.html`（行番号付きの表） |
+| その他のテキストファイル（`.txt`・`.yaml`・`.go` など 1MB まで） | `a/x.txt.html`（行番号と色分け付き） |
+| 画像 | `a/x.png.html`（画像、ファイルサイズ、縦横のピクセル数） |
+| PDF | `a/x.pdf.html`（ブラウザの PDF ビューアでページ内に表示。表示できないブラウザ（スマホなど）ではダウンロードボタン） |
+| その他のファイル（zip・docx など、1MB を超えるテキスト） | `a/x.zip.html`（「表示できません」とダウンロードボタン） |
+| 本文の画像 | 埋め込み。クリックするとその画像のページが開く（外部の画像は元の URL を新しいタブで） |
 
-## OKF の index.md
+### OKF の index.md
 
-OKF では `index.md` はフォルダの一覧で、フロントマターを持ちません。持てるのはバンドルのルートの `index.md` だけで、書けるのは `okf_version` だけです（仕様 §6・§8・§12）。okf-export もこれに合わせています。
+OKF では `index.md` はフォルダの目次で、フロントマターを持ちません。持てるのはバンドルのルートの `index.md` だけで、書けるのは `okf_version` だけです（仕様 §6・§8・§12）。
 
-- ページのタイトルはフォルダ名（ルートはバンドル名）です。`index.md` の `title`・`description`・`tags` は使いません。仕様にないフロントマターがあれば、警告を出して無視します。
-- フォルダのページには、GitHub のようなファイル一覧ではなく、そのフォルダの `index.md` を表示します。見出しで分けた `* [タイトル](リンク) - 説明` の一覧が、そのまま目次になります（`okf index` で作ったものも、手で書いたものも同じ）。フォルダの説明は、親フォルダの `index.md` に `* [名前](sub/) - 説明` と書きます。
-- `index.md` が無いフォルダでは、同じ形の一覧を自動で作ります（仕様 §8 で認められている動き）。文書はタイトルとフロントマターの `description`、その他のファイルとサブフォルダは名前を、Concepts・Files・Subdirectories に分けて並べます。
+- フォルダのページは、そのフォルダの `index.md` をそのまま表示します。見出しで分けた `* [タイトル](リンク) - 説明` の一覧が、そのまま目次になります（`okf index` で作ったものも、手で書いたものも同じ）。
+- `index.md` が無いフォルダでは、同じ形の一覧を自動で作ります（§8 で認められている動き）。文書はタイトルと `description`、その他のファイルとサブフォルダは名前を、Concepts・Files・Subdirectories に分けて並べます。
+- ページのタイトルはフォルダ名（ルートはバンドル名）です。`index.md` の `title` などは使わず、仕様にないフロントマターには警告を出します。
 
-## ページの機能
+## Markdown の記法
 
-- **ファイルのヘッダーのボタン**（GitHub のファイル表示と同じ）
-  - `Preview` / `Raw`：描画結果と、元のファイル（行番号付き）を切り替えます。
-  - コピー（Copy raw file）：元のファイルの全文をクリップボードにコピーします。
-  - ダウンロード（Download raw file）：元のファイルを保存します。
-  - アウトライン（Outline）：見出しの一覧を開き、クリックでその見出しへ移動します（Markdown のみ）。
-- **コードブロックのコピーボタン**：コードブロックにマウスを乗せると右上に出ます（スマホでは常に表示）。
-- **検索**：ヘッダーの検索欄（`/` で移動）で、全ページのタイトル・パス・説明・本文を検索します。空白で区切ると AND 検索です。`↑` `↓` で選び、`Enter` で開きます。
-- **アラート**：GitHub と同じく、1行目が `[!NOTE]`・`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]` の引用を色付きの枠で表示します。
+GitHub Flavored Markdown（表・取り消し線・タスクリスト・自動リンク）と脚注に加えて、[Crossnote](https://github.com/shd101wyy/crossnote)（Markdown Preview Enhanced）の記法のうち次のものに対応しています。
 
-  ```
-  > [!TIP]
-  > 便利なヒント
-  ```
+| 記法 | 例 |
+| --- | --- |
+| Wiki リンク | `[[setup]]`・`[[setup\|表示名]]`・`[[setup#見出し]]`・`[[#見出し]]`・`[[/tables/x]]`。探し方は OKF（Obsidian）と同じで、同じフォルダ、ルートからのパス、バンドル全体のファイル名の順。見つからなければ文字だけ残して警告します。 |
+| 埋め込み | `![[image.png]]`（文中でも可） |
+| ハイライト | `==強調したい語==` → `<mark>` |
+| 目次 | `[TOC]` だけの段落 → そのページの見出しの一覧 |
+| 属性 | `![](a.png){height=800px}`・`{width=300 .class #id}`・見出しの末尾の `{#id}` |
+| ファイルの取り込み | 単独の行の `@import "data.csv"`・`<!-- @import "x.md" -->`・`![](data.csv)`・`![[data.csv]]` |
+| GitHub のアラート | `> [!NOTE]`・`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]` |
+| `<img>` タグ | `<img src="a.png" width="300">`（GitHub での大きさの指定。`-unsafe` なしで効きます） |
 
-- **属性の指定**（Markdown Preview Enhanced 互換）：画像やリンクの直後に `{...}` を書くと属性になります。見出しの末尾の `{#id}` も使えます。
+- 見出しの id は mdBook と同じく、日本語などの文字をそのまま残します（`## 設定ファイル` → `#設定ファイル`）。
+- 画像の `width`・`height` は CSS として出力します（数字だけなら px）。縦横比は保ち、`height` だけの画像が画面の幅に収まらないときは高さも同じ比率で縮めます。
+- `<img>` は、`<img>` だけの HTML（`<p>`・`<div>` で囲んだものも可）に限ります。使う属性は `alt`・`title`・`width`・`height`・`align` だけです。
 
-  ```
-  ![](image.png){height=800px}
-  ![](image.png){width=300 .border #fig1}
-  [資料](doc.pdf){title="説明"}
-  @import "image.png" {width="50%"}
-  ```
-
-  `width` と `height` は CSS として出力します（数字だけなら px）。`.class`・`#id`・`title` なども使えます。
-  画像の縦横比は保ちます。`height` だけを指定した画像が画面の幅に収まらないときは、高さも同じ比率で縮めます。`width` と `height` を両方指定すると、その枠の中に収めます。
-
-- **`<img>` タグ**（GitHub 互換）：GitHub で画像の大きさを変えるときの書き方も、そのまま使えます。`src` のパスは `![](...)` と同じく解決して埋め込み、`alt`・`title`・`width`・`height`・`align` だけを使います（`style` や `onerror` などは捨てます）。`-unsafe` を付けなくても効きます。
-
-  ```html
-  <img src="images/a.png" alt="説明" width="300">
-
-  <p align="center">
-    <img src="logo.png" width="200">
-  </p>
-  ```
-
-  `<img>` だけの HTML（`<p>`・`<div>` で囲んだものも可）に限ります。`<a>` で囲んだ画像など、ほかのタグが混ざった HTML は、これまでどおり除きます（`-unsafe` ならそのまま出力）。
-
-## LLM に HTML を書かせる場合
-
-`okf-export` を実行できない環境では、[prompts/single-html.md](prompts/single-html.md) のプロンプトを LLM に渡すと、`-single` とほぼ同じ形式の1ファイルの HTML を書かせられます。画像は埋め込めないので、きちんと出力したいときは `okf-export -single` を使ってください。
-
-## ファイルの取り込み（Crossnote / Markdown Preview Enhanced 互換）
-
-次のどれかを単独の行に書くと、ファイルの内容がその場所に取り込まれます。コードブロックの中に書いたものは取り込みません。
-
-```
-@import "data.csv"
-<!-- @import "data.csv" -->
-![](data.csv)
-![[data.csv]]
-```
+### ファイルの取り込み
 
 | ファイル | 取り込まれ方 |
 | --- | --- |
@@ -117,15 +106,31 @@ OKF では `index.md` はフォルダの一覧で、フロントマターを持�
 | `.md` | 本文をそのまま展開（フロントマターは除き、入れ子の取り込みも可。循環は検出してスキップ） |
 | その他 | 拡張子を言語名にしたコードブロック |
 
-`![[name]]` は相対パスで見つからない場合、バンドル全体からファイル名で探します。文の途中の `![](x.csv)` は、表のページへのリンクになります。
+コードブロックの中に書いたものは取り込みません。文の途中の `![](x.csv)` は、表のページへのリンクになります。
+
+## mdBook との比較
+
+[tools/compare-mdbook](tools/compare-mdbook/) に、同じバンドルを mdBook でも書き出して、同じページのスクリーンショットを並べるスクリプトがあります（mdBook と Node.js の Playwright が必要）。`okf-export summary` が出す `SUMMARY.md` を使うので、目次の並びも同じになります。
+
+意図して mdBook と違えているところ:
+
+- フォントは同梱せず、OS のフォントを使います（mdBook は Open Sans と Source Code Pro を同梱）。出力を小さく保ち、日本語のフォントを OS に任せるためです。
+- 目次は `SUMMARY.md` ではなくディレクトリ構造から作り、章番号は付けません。
+- 全ページを1つにまとめた印刷用ページ（mdBook の `print.html`）は作らず、印刷は今のページだけです。
+- コードの色分けはブラウザの JavaScript（highlight.js）ではなく、書き出すときに行います（[chroma](https://github.com/alecthomas/chroma)）。
+- OKF のための追加：フロントマターの表示、Sources と Cited by、ページの道具、フォルダ・CSV・画像などのページ、1ファイルの出力。
+
+## LLM に HTML を書かせる場合
+
+`okf-export` を実行できない環境では、[prompts/single-html.md](prompts/single-html.md) のプロンプトを LLM に渡すと、`-single` とほぼ同じ形式の1ファイルの HTML を書かせられます。画像は埋め込めないので、きちんと出力したいときは `okf-export -single` を使ってください。
 
 ## 制限
 
 - 表として描画するのは 1,000 行までです。それより後はダウンロードしたファイルで見てください。
-- 1MB を超えるファイルは、テキストのページと `Raw` 表示・コピーを作りません（ダウンロードはできます）。
-- 検索の対象は1ページにつき本文の先頭 20,000 バイトまでです。
+- 1MB を超えるファイルは、テキストのページと元のファイルの表示・コピーを作りません（ダウンロードはできます）。
 - `@import` で取り込んだ `.md` の中の相対リンクは、取り込んだ側のファイルを基準に解決されます。
-- オンラインのファイル（`@import "https://..."`）と、Crossnote の PDF・PlantUML・Graphviz・Mermaid の描画には対応していません。
+- オンラインのファイル（`@import "https://..."`）と、Crossnote の数式（KaTeX・MathJax）・Mermaid・PlantUML・Graphviz の描画には対応していません。
+- ページごとの出力では、サイドバーと検索を JavaScript で読み込みます（`okf-toc.js`・`okf-search.js`）。JavaScript を切ったブラウザでは、サイドバーと検索は使えません。
 - 解決できないリンクや取り込みは、そのまま残して標準エラーに警告を出します。
 
 ## インストール
@@ -136,4 +141,8 @@ go install github.com/Mokkori-Tom/okf-export@latest
 
 ## ライセンス
 
-MIT。`assets/github-markdown.css` は [github-markdown-css](https://github.com/sindresorhus/github-markdown-css)（MIT, © Sindre Sorhus）を同梱しています。
+MIT。
+
+- 画面の構成とテーマの配色は [mdBook](https://github.com/rust-lang/mdBook)（MPL-2.0）に合わせていますが、mdBook のコード・CSS・フォントは含んでいません。CSS と JavaScript はこのリポジトリで書いたものです。
+- アイコンは [Octicons](https://github.com/primer/octicons)（MIT, © GitHub, Inc.）の図形を使っています。
+- 依存ライブラリ：[goldmark](https://github.com/yuin/goldmark)（MIT）、[goldmark-highlighting](https://github.com/yuin/goldmark-highlighting)（MIT）、[chroma](https://github.com/alecthomas/chroma)（MIT）、[yaml.v3](https://github.com/go-yaml/yaml)（MIT / Apache-2.0）。

@@ -60,6 +60,7 @@ func (s *server) rebuild() error {
 		return err
 	}
 	out[searchFile] = js
+	out[tocFile] = ex.tocJS()
 	s.mu.Lock()
 	s.pages = out
 	s.mu.Unlock()

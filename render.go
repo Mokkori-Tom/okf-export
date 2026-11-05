@@ -90,6 +90,7 @@ type exporter struct {
 	res     []string       // data URIs, indexed by placeholder number
 	resIdx  map[string]int // bundle path -> index in res
 	resErrs map[string]bool
+	nav     *navItem // set by build
 }
 
 func newExporter(b *bundle, name string, unsafe, single bool) *exporter {
@@ -110,15 +111,24 @@ func newExporter(b *bundle, name string, unsafe, single bool) *exporter {
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
 			parser.WithAttribute(),
+			parser.WithInlineParsers(
+				util.Prioritized(wikiLinks{ex: ex}, 199), // before [links]
+				util.Prioritized(markParser{}, 600),
+			),
 			parser.WithASTTransformers( // lower priority runs first
 				util.Prioritized(imgTags{}, 90), // before linkRewriter resolves the src
 				// before linkRewriter wraps images in links, so {...} after an image stays on it
 				util.Prioritized(inlineAttrs{}, 95),
 				util.Prioritized(&linkRewriter{ex: ex}, 100),
 				util.Prioritized(alertTransformer{}, 120),
+				util.Prioritized(tocTransformer{}, 130),
 			),
 		),
-		goldmark.WithRendererOptions(renderer.WithNodeRenderers(util.Prioritized(alertRenderer{}, 500))),
+		goldmark.WithRendererOptions(renderer.WithNodeRenderers(
+			util.Prioritized(alertRenderer{}, 500),
+			util.Prioritized(markRenderer{}, 500),
+			util.Prioritized(tocRenderer{}, 500),
+		)),
 	)...)
 	return ex
 }
@@ -144,7 +154,7 @@ func (ex *exporter) parse(p string) (*doc, error) {
 			}
 		}
 	}
-	ctx := parser.NewContext()
+	ctx := parser.NewContext(parser.WithIDs(newHeadingIDs()))
 	ctx.Set(ctxDocKey, d)
 	var buf bytes.Buffer
 	src = ex.preprocess(d, p, body, map[string]bool{p: true})

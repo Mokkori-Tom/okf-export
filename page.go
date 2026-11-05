@@ -21,11 +21,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed assets/github-markdown.css
-var markdownCSS string
-
-//go:embed assets/layout.css
-var layoutCSS string
+//go:embed assets/book.css
+var bookCSS string
 
 //go:embed assets/*.html
 var templateFS embed.FS
@@ -35,19 +32,37 @@ var appJS string
 
 var tmpl = template.Must(template.ParseFS(templateFS, "assets/*.html"))
 
-// highlightCSS is the chroma stylesheet for code blocks, following the
-// system light/dark preference like github-markdown.css does.
+// themes are the colour themes of the page, after mdBook's, each with the
+// chroma style used for its code.
+var themes = []struct{ ID, Name, Code string }{
+	{"light", "Light", "github"},
+	{"rust", "Rust", "github"},
+	{"coal", "Coal", "onedark"},
+	{"navy", "Navy", "onedark"},
+	{"ayu", "Ayu", "tokyonight-night"},
+}
+
+// highlightCSS is the chroma stylesheet for code blocks, one per theme,
+// scoped by the theme class on <html>.
 var highlightCSS = func() string {
-	var light, dark strings.Builder
+	var out strings.Builder
 	f := chromahtml.New(chromahtml.WithClasses(true))
-	_ = f.WriteCSS(&light, styles.Get("github"))
-	_ = f.WriteCSS(&dark, styles.Get("github-dark"))
-	return light.String() + "@media (prefers-color-scheme: dark) {\n" + dark.String() + "}\n" +
-		// Let the markdown CSS own the code block background.
-		".markdown-body .chroma { background: transparent; }\n"
+	for _, t := range themes {
+		var b strings.Builder
+		_ = f.WriteCSS(&b, styles.Get(t.Code))
+		for _, line := range strings.Split(b.String(), "\n") {
+			// "/* Keyword */ .chroma .k { ... }": prefix the selector.
+			if i := strings.Index(line, "*/ .chroma"); i >= 0 {
+				out.WriteString(line[:i+3] + "html." + t.ID + " " + line[i+3:] + "\n")
+			}
+		}
+	}
+	// The theme's CSS owns the code block background.
+	out.WriteString(".content .chroma { background: transparent; }\n")
+	return out.String()
 }()
 
-var stylesheets = template.CSS(markdownCSS + highlightCSS + layoutCSS)
+var stylesheets = template.CSS(bookCSS + highlightCSS)
 
 type crumb struct {
 	Name string
@@ -58,7 +73,6 @@ type entry struct {
 	Dir         bool
 	Name        string
 	URL         template.URL
-	Download    string
 	Title       string
 	Description string
 }
@@ -89,20 +103,31 @@ type mediaView struct {
 	Size string
 }
 
-// searchEntry is one page in the client-side search index.
+// searchEntry is one section of a page in the client-side search index:
+// the text from one heading to the next, like mdBook's search.
 type searchEntry struct {
-	Page        string `json:"u"`
-	Title       string `json:"t"`
-	Path        string `json:"p"`
-	Description string `json:"d,omitempty"`
-	Text        string `json:"x,omitempty"`
+	Page    string `json:"u"`
+	Anchor  string `json:"a,omitempty"` // heading id; empty for the top of the page
+	Title   string `json:"t"`           // page title
+	Heading string `json:"h,omitempty"`
+	Path    string `json:"p"` // where the page is, e.g. "tables/events_.md"
+	Text    string `json:"x,omitempty"`
+}
+
+// navLink is a previous/next chapter link.
+type navLink struct {
+	Title string
+	URL   string
 }
 
 type pageData struct {
 	Page        string // output path, also the route in single-file mode
 	BundleName  string
 	HomeURL     string
-	Root        string // relative URL of the output root, "" or "../.."
+	Prev, Next  *navLink
+	Themes      any
+	TitleHTML   template.HTML // the body's opening <h1>, moved above the metadata
+	Root        string        // relative URL of the output root, "" or "../.."
 	Script      template.JS
 	Title       string
 	Crumbs      []crumb
@@ -119,7 +144,8 @@ type pageData struct {
 	Stylesheets template.CSS
 	LiveReload  bool
 
-	search searchEntry
+	searchText string // plain text for the search index, if not Body
+	search     []searchEntry
 }
 
 type stats struct{ pages, dirs, tables, texts, files, resources, broken int }
@@ -160,16 +186,17 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		data.HomeURL = ex.href(page, "index.html")
 		data.Root = strings.Repeat("../", strings.Count(page, "/"))
 		data.Script = template.JS(appJS)
-		data.search.Page = page
-		data.search.Title = data.Title
-		if data.Meta.Description != "" {
-			data.search.Description = data.Meta.Description
-		}
+		data.Themes = themes
 		var names []string
 		for _, c := range data.Crumbs[1:] {
 			names = append(names, c.Name)
 		}
-		data.search.Path = strings.Join(names, "/")
+		data.search = pageSearch(data, strings.Join(names, "/"))
+		// A body that opens with the title as its heading keeps that heading,
+		// shown above the description and labels instead of a second title.
+		if h, rest, ok := leadingTitle(string(data.Body), data.Title); ok {
+			data.TitleHTML, data.Body = template.HTML(h), template.HTML(rest)
+		}
 		pages = append(pages, data)
 	}
 
@@ -194,7 +221,7 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		page := ex.b.pageFor(p)
 		data := &pageData{Title: path.Base(p), FileName: path.Base(p)}
 		data.File = ex.fileView(p, raw, false)
-		data.search.Text = plainText(html.EscapeString(string(raw)))
+		data.searchText = string(raw)
 		data.Crumbs = ex.crumbs(page, path.Dir(p), path.Base(p))
 		add(page, data)
 		st.texts++
@@ -234,7 +261,7 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		data := &pageData{Title: path.Base(p), FileName: path.Base(p)}
 		data.CSV = &csvView{Rows: countRows(p, raw), Table: template.HTML(csvTable(p, raw, true))}
 		data.File = ex.fileView(p, raw, true)
-		data.search.Text = plainText(string(data.CSV.Table))
+		data.searchText = plainText(string(data.CSV.Table))
 		data.Crumbs = ex.crumbs(page, path.Dir(p), path.Base(p))
 		add(page, data)
 		st.tables++
@@ -262,7 +289,6 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 			data.FileName = "Index"
 			data.Body = template.HTML(synthIndex(ex.entries(dir, page, docs)))
 		}
-		data.search.Text = plainText(string(data.Body))
 		data.Title = path.Base(dir)
 		data.Crumbs = ex.crumbs(page, path.Dir(dir), path.Base(dir))
 		if dir == "" {
@@ -271,6 +297,26 @@ func (ex *exporter) build() ([]*pageData, stats, error) {
 		}
 		add(page, data)
 		st.dirs++
+	}
+
+	// Previous and next chapter, in the sidebar's order.
+	ex.nav = ex.navTree(docs)
+	order := ex.nav.order()
+	at := map[string]int{}
+	for i, it := range order {
+		at[it.Page] = i
+	}
+	for _, p := range pages {
+		i, ok := at[p.Page]
+		if !ok {
+			continue
+		}
+		if i > 0 {
+			p.Prev = &navLink{order[i-1].Title, ex.href(p.Page, order[i-1].Page)}
+		}
+		if i+1 < len(order) {
+			p.Next = &navLink{order[i+1].Title, ex.href(p.Page, order[i+1].Page)}
+		}
 	}
 	st.resources = len(ex.res)
 	return pages, st, nil
@@ -306,17 +352,29 @@ func (ex *exporter) writeSite(out string, pages []*pageData) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(out, searchFile), js, 0o644)
+	if err := os.WriteFile(filepath.Join(out, searchFile), js, 0o644); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(out, tocFile), ex.tocJS(), 0o644)
 }
 
-// searchFile is the search index next to the top index.html. Pages load it
-// with a <script> tag, which also works for files opened from disk.
-const searchFile = "okf-search.js"
+// searchFile is the search index and tocFile the sidebar, next to the top
+// index.html. Pages load them with a <script> tag, which also works for
+// files opened from disk, so the sidebar isn't repeated in every page.
+const (
+	searchFile = "okf-search.js"
+	tocFile    = "okf-toc.js"
+)
+
+func (ex *exporter) tocJS() []byte {
+	b, _ := json.Marshal(ex.nav.tocHTML())
+	return append(append([]byte("window.OKF_TOC="), b...), ";\n"...)
+}
 
 func searchIndex(pages []*pageData) []searchEntry {
-	idx := make([]searchEntry, len(pages))
-	for i, p := range pages {
-		idx[i] = p.search
+	var idx []searchEntry
+	for _, p := range pages {
+		idx = append(idx, p.search...)
 	}
 	return idx
 }
@@ -338,12 +396,15 @@ func (ex *exporter) writeSingle(out string, pages []*pageData) error {
 	var sb strings.Builder
 	data := struct {
 		BundleName  string
+		HomeURL     string
 		Stylesheets template.CSS
 		Script      template.JS
+		Themes      any
+		TOC         template.HTML
 		Pages       []*pageData
 		Resources   []string
 		Search      []searchEntry
-	}{ex.name, stylesheets, template.JS(appJS), pages, ex.res, searchIndex(pages)}
+	}{ex.name, "#/index.html", stylesheets, template.JS(appJS), themes, template.HTML(ex.nav.tocHTML()), pages, ex.res, searchIndex(pages)}
 	if err := tmpl.ExecuteTemplate(&sb, "single.html", data); err != nil {
 		return err
 	}
@@ -369,7 +430,6 @@ func (ex *exporter) docPage(d *doc, refs []*doc) *pageData {
 	}
 	data.File = ex.fileView(d.path, d.raw, true)
 	data.File.Outline = true
-	data.search.Text = plainText(d.body)
 	data.Backlinks = ex.backlinks(d, refs)
 	return data
 }

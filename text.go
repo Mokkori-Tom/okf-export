@@ -80,15 +80,8 @@ var (
 	spaceRe = regexp.MustCompile(`\s+`)
 )
 
-// maxSearchText caps the text kept per page in the search index.
-const maxSearchText = 20000
-
 // plainText strips tags from rendered HTML for the search index.
 func plainText(s string) string {
 	s = html.UnescapeString(tagRe.ReplaceAllString(s, " "))
-	s = strings.TrimSpace(spaceRe.ReplaceAllString(s, " "))
-	if len(s) > maxSearchText {
-		s = strings.ToValidUTF8(s[:maxSearchText], "")
-	}
-	return s
+	return strings.TrimSpace(spaceRe.ReplaceAllString(s, " "))
 }

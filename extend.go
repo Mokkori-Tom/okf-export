@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
@@ -244,3 +245,34 @@ func (alertRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 		return ast.WalkContinue, nil
 	})
 }
+
+// headingIDs makes heading ids the way mdBook does, keeping letters in any
+// script: "## トラブル シューティング" gets #トラブル-シューティング rather
+// than goldmark's #heading. Repeats get -1, -2, ...
+type headingIDs struct{ used map[string]bool }
+
+func newHeadingIDs() *headingIDs { return &headingIDs{used: map[string]bool{}} }
+
+func (h *headingIDs) Generate(value []byte, kind ast.NodeKind) []byte {
+	var b strings.Builder
+	for _, r := range strings.ToLower(strings.TrimSpace(string(value))) {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '-':
+			b.WriteRune(r)
+		case r == ' ':
+			b.WriteRune('-')
+		}
+	}
+	id := b.String()
+	if id == "" {
+		id = "heading"
+	}
+	base := id
+	for i := 1; h.used[id]; i++ {
+		id = fmt.Sprintf("%s-%d", base, i)
+	}
+	h.used[id] = true
+	return []byte(id)
+}
+
+func (h *headingIDs) Put(value []byte) { h.used[string(value)] = true }

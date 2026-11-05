@@ -111,17 +111,7 @@ func (ex *exporter) resolveImport(from, target string, wiki bool) string {
 	if !wiki {
 		return ""
 	}
-	for _, cand := range []string{target, target + ".md"} {
-		if p, _, ok := ex.resolveLocal("", "/"+cand); ok && ex.b.files[p] {
-			return p
-		}
-	}
-	for _, f := range sortedKeys(ex.b.files) {
-		if b := path.Base(f); b == target || b == target+".md" {
-			return f
-		}
-	}
-	return ""
+	return ex.wikiResolve(from, target)
 }
 
 // expand returns the markdown that replaces an import of bundle file p.
